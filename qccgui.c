@@ -495,9 +495,9 @@ static LONG CALLBACK EditorWndProc(HWND hWnd,UINT message,
 
 				SendMessage(editor->editpane, EM_EXGETSEL, 0, (LPARAM) &chrg);
 				if (editor->modified)
-					sprintf(title, "*%s:%i - FTEQCC Editor", editor->filename, 1+Edit_LineFromChar(editor->editpane, chrg.cpMin));
+					sprintf(title, "*%s:%i - RMQCC Editor", editor->filename, 1+Edit_LineFromChar(editor->editpane, chrg.cpMin));
 				else
-					sprintf(title, "%s:%i - FTEQCC Editor", editor->filename, 1+Edit_LineFromChar(editor->editpane, chrg.cpMin));
+					sprintf(title, "%s:%i - RMQCC Editor", editor->filename, 1+Edit_LineFromChar(editor->editpane, chrg.cpMin));
 				SetWindowText(editor->window, title);
 			}
 		}
@@ -519,9 +519,9 @@ static LONG CALLBACK EditorWndProc(HWND hWnd,UINT message,
 			case EN_SELCHANGE:
 				sel = (SELCHANGE *)nmhdr;
 				if (editor->modified)
-					sprintf(title, "*%s:%i - FTEQCC Editor", editor->filename, 1+Edit_LineFromChar(editor->editpane, sel->chrg.cpMin));
+					sprintf(title, "*%s:%i - RMQCC Editor", editor->filename, 1+Edit_LineFromChar(editor->editpane, sel->chrg.cpMin));
 				else
-					sprintf(title, "%s:%i - FTEQCC Editor", editor->filename, 1+Edit_LineFromChar(editor->editpane, sel->chrg.cpMin));
+					sprintf(title, "%s:%i - RMQCC Editor", editor->filename, 1+Edit_LineFromChar(editor->editpane, sel->chrg.cpMin));
 				SetWindowText(editor->window, title);
 				break;
 			}
@@ -1267,7 +1267,7 @@ static LONG CALLBACK OptionsWndProc(HWND hWnd,UINT message,
 				MessageBox(hWnd, "Sets a specific optimisation level", "Help", MB_OK|MB_ICONINFORMATION);
 				break;
 			case IDI_O_CHANGE_PROGS_SRC:
-				MessageBox(hWnd, "Use this button to change your root source file.\nNote that fteqcc compiles sourcefiles from editors first, rather than saving. This means that changes are saved ONLY when you save them, but means that switching project mid-compile can result in problems.", "Help", MB_OK|MB_ICONINFORMATION);
+				MessageBox(hWnd, "Use this button to change your root source file.\nNote that rmqcc compiles sourcefiles from editors first, rather than saving. This means that changes are saved ONLY when you save them, but means that switching project mid-compile can result in problems.", "Help", MB_OK|MB_ICONINFORMATION);
 				break;
 			case IDI_O_ADDITIONALPARAMETERS:
 				MessageBox(hWnd, "Type in additional commandline parameters here. Use -Dname to define a named precompiler constant before compiling.", "Help", MB_OK|MB_ICONINFORMATION);
@@ -1987,7 +1987,7 @@ void RunCompiler(char *args)
 	if (logfile)
 		fclose(logfile);
 	if (fl_log)
-		logfile = fopen("fteqcc.log", "wb");
+		logfile = fopen("rmqcc.log", "wb");
 	else
 		logfile = NULL;
 
@@ -2150,7 +2150,7 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 		FILE *f;
 		char *s;
 
-		f = fopen("fteqcc.cfg", "rb");
+		f = fopen("rmqcc.cfg", "rb");
 		if (f)
 		{
 			fseek(f, 0, SEEK_END);

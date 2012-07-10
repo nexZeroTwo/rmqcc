@@ -15,7 +15,7 @@ Features:
 
 	* Multiple 'threads'. The library allows a builtin to make a duplicate of the current execution state, or to wipe the current state. This allows sleep commands and fork commands. How handy.
 
-	* Integrated QC compiler. FTEQCC comes as part of qclib. By setting up an interface with a specific value, you can cause it to always run, or run only if it detects a source change.
+	* Integrated QC compiler. RMQCC comes as part of qclib. By setting up an interface with a specific value, you can cause it to always run, or run only if it detects a source change.
 
 	* Support for different sorts of progs. Namly Hexen2's, kkqwsv's bigprogs, and FTE's extended format with extra opcodes and possibly fully 32bit offsets. The use of kkqwsv's progs is not recommended - this might be removed at some point.
 
@@ -23,7 +23,7 @@ Features:
 
 
 Quirks:
-	* don't use multiple instances of fteqcc at the same time. Compilation will fail.
+	* don't use multiple instances of rmqcc at the same time. Compilation will fail.
 	* 64bit support requires all strings to be allocated by qclib itself, achivable via a method call. Compatability requires a certain ammount of caution.
 	* a fair number of methods are obsolete.
 	* An overuse of pointers in the API. There are some macros which you can use to hide some of the dereferences.

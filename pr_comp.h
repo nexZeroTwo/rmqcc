@@ -286,7 +286,7 @@ enum qcop_e {
 	OP_NE_IF,
 	OP_NE_FI,
 
-//erm... FTEQCC doesn't make use of these... These are for DP.
+//erm... RMQCC doesn't make use of these... These are for DP.
 	OP_GSTOREP_I,
 	OP_GSTOREP_F,
 	OP_GSTOREP_ENT,
@@ -304,7 +304,7 @@ enum qcop_e {
 	OP_BOUNDCHECK,
 
 //back to ones that we do use.
-	OP_UNUSED,	//used to be OP_STOREP_P, which is now emulated with OP_STOREP_I, fteqcc nor fte generated it
+	OP_UNUSED,	//used to be OP_STOREP_P, which is now emulated with OP_STOREP_I, rmqcc nor fte generated it
 	OP_PUSH,	//push 4octets onto the local-stack (which is ALWAYS poped on function return). Returns a pointer.
 	OP_POP,		//pop those ones that were pushed (don't over do it). Needs assembler.
 

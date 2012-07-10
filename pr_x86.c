@@ -1306,7 +1306,7 @@ LOADREG(glob + op[i].b, REG_EDI);
 			break;
 		}
 
-		/*fteqcc generates these from reading 'fast arrays', and are part of hexenc extras*/
+		/*rmqcc generates these from reading 'fast arrays', and are part of hexenc extras*/
 		case OP_FETCH_GBL_F:
 		case OP_FETCH_GBL_S:
 		case OP_FETCH_GBL_E:
@@ -1346,7 +1346,7 @@ LOADREG(glob + op[i].b, REG_EDI);
 			break;
 		}
 
-		/*fteqcc generates these from writing 'fast arrays'*/
+		/*rmqcc generates these from writing 'fast arrays'*/
 		case OP_GLOBALADDRESS:
 			LOADREG(glob + op[i].b, REG_EAX);
 			//lea &glob[A](, %eax, 4),%eax

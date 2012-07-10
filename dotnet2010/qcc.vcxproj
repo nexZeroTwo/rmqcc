@@ -116,10 +116,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>../../libs/zlib.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>../../fteqcc_dbg.exe</OutputFile>
+      <OutputFile>../../rmqcc_dbg.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>.\Debug/fteqcc_dbg.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>.\Debug/rmqcc_dbg.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
@@ -158,10 +158,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>../../libs/zlib.lib;odbc32.lib;odbccp32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\..\fteqcc.exe</OutputFile>
+      <OutputFile>..\..\rmqcc.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>.\qcc___Win32_GUIDebug/fteqcc.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>.\qcc___Win32_GUIDebug/rmqcc.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
@@ -200,9 +200,9 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>../../libs/zlib.lib;odbc32.lib;odbccp32.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>../../fteqccgui.exe</OutputFile>
+      <OutputFile>../../rmqccgui.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <ProgramDatabaseFile>.\qcc___Win32_GUIRelease0/fteqccgui.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>.\qcc___Win32_GUIRelease0/rmqccgui.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
@@ -240,9 +240,9 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>../../libs/zlib.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>../../fteqcc.exe</OutputFile>
+      <OutputFile>../../rmqcc.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <ProgramDatabaseFile>.\Release/fteqcc.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>.\Release/rmqcc.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>

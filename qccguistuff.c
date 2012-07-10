@@ -251,7 +251,7 @@ int GUI_BuildParms(char *args, char **argv)
 
 
 	argc = 1;
-	argv[0] = "fteqcc";
+	argv[0] = "rmqcc";
 
 	while(*args)
 	{

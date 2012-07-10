@@ -62,7 +62,7 @@ pbool keyword_noref;	//nowhere else references this, don't strip it.
 pbool keyword_nosave;	//don't write the def to the output.
 pbool keyword_union;	//you surly know what a union is!
 
-#define keyword_not			1	//hexenc support needs this, and fteqcc can optimise without it, but it adds an extra token after the if, so it can cause no namespace conflicts
+#define keyword_not			1	//hexenc support needs this, and rmqcc can optimise without it, but it adds an extra token after the if, so it can cause no namespace conflicts
 
 pbool keywords_coexist;		//don't disable a keyword simply because a var was made with the same name.
 pbool output_parms;			//emit some PARMX fields. confuses decompilers.
@@ -935,7 +935,7 @@ pbool QCC_OPCodeValid(QCC_opcode_t *op)
 
 		//stores into the globals array.
 		//they can change any global dynamically, but thats no security risk.
-		//fteqcc will not automatically generate these.
+		//rmqcc will not automatically generate these.
 		//fteqw does not support them either.
 		case OP_GSTOREP_I:
 		case OP_GSTOREP_F:
@@ -950,7 +950,7 @@ pbool QCC_OPCodeValid(QCC_opcode_t *op)
 		case OP_GADDRESS://floatc = globals[inta + floatb] (fte does not support)
 			return true;
 
-		//fteqcc will not automatically generate these
+		//rmqcc will not automatically generate these
 		//fteqw does not support them either, for that matter.
 		case OP_GLOAD_I://c = globals[inta]
 		case OP_GLOAD_F://note: fte does not support these
@@ -4089,7 +4089,7 @@ void QCC_PR_EmitFieldsForMembers(QCC_type_t *clas)
 		if (f)
 		{
 			if (m->arraysize)
-				QCC_Error(ERR_INTERNAL, "FTEQCC does not support overloaded arrays of members");
+				QCC_Error(ERR_INTERNAL, "RMQCC does not support overloaded arrays of members");
 			a=0;
 			for (o = 0; o < m->type->size; o++)
 				((int *)qcc_pr_globals)[o+a*mt->size+m->ofs] = ((int *)qcc_pr_globals)[o+f->ofs];
@@ -9408,7 +9408,7 @@ void QCC_PR_ParseDefs (char *classname)
 
 		if (type->type == ev_field && QCC_PR_CheckName ("alias"))
 		{
-			QCC_PR_ParseError(ERR_INTERNAL, "FTEQCC does not support this variant of decompiled hexenc\nPlease obtain the original version released by Raven Software instead.");
+			QCC_PR_ParseError(ERR_INTERNAL, "RMQCC does not support this variant of decompiled hexenc\nPlease obtain the original version released by Raven Software instead.");
 			name = QCC_PR_ParseName();
 		}
 		else if ( QCC_PR_CheckToken ("=") || ((type->type == ev_function) && (pr_token[0] == '{' || pr_token[0] == '[' || pr_token[0] == ':')))	//this is an initialisation (or a function)

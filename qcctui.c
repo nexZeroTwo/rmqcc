@@ -104,7 +104,7 @@ int main (int argc, char **argv)
 	funcs.parms->WriteFile = QCC_WriteFile;
 	funcs.parms->printf = logprintf;
 	funcs.parms->Sys_Error = Sys_Error;
-	logfile = fopen("fteqcc.log", "wt");
+	logfile = fopen("rmqcc.log", "wt");
 	sucess = CompileParams(&funcs, true, argc, argv);
 	qccClearHunk();
 	if (logfile)

@@ -23,11 +23,11 @@ DO_CC=$(CC) $(BASE_CFLAGS) -o $@ -c $< $(CFLAGS)
 lib: 
 
 R_win_nocyg: $(QCC_OBJS) $(COMMON_OBJS) $(WIN32GUI_OBJS)
-	$(CC) $(BASE_CFLAGS) -o fteqcc.exe -O3 $(BASE_LDFLAGS) $(QCC_OBJS) $(COMMON_OBJS) $(WIN32GUI_OBJS) -mno-cygwin -mwindows -lcomctl32
+	$(CC) $(BASE_CFLAGS) -o rmqcc.exe -O3 $(BASE_LDFLAGS) $(QCC_OBJS) $(COMMON_OBJS) $(WIN32GUI_OBJS) -mno-cygwin -mwindows -lcomctl32
 R_nocyg: $(QCC_OBJS) $(COMMON_OBJS) $(WIN32GUI_OBJS)
-	$(CC) $(BASE_CFLAGS) -o fteqcc.exe -O3 $(BASE_LDFLAGS) $(QCC_OBJS) $(COMMON_OBJS) $(WIN32GUI_OBJS) -mno-cygwin -lcomctl32
+	$(CC) $(BASE_CFLAGS) -o rmqcc.exe -O3 $(BASE_LDFLAGS) $(QCC_OBJS) $(COMMON_OBJS) $(WIN32GUI_OBJS) -mno-cygwin -lcomctl32
 R_win: $(QCC_OBJS) $(COMMON_OBJS) $(WIN32GUI_OBJS)
-	$(CC) $(BASE_CFLAGS) -o fteqcc.exe -O3 $(BASE_LDFLAGS) $(QCC_OBJS) $(COMMON_OBJS) $(WIN32GUI_OBJS) -mwindows -lcomctl32
+	$(CC) $(BASE_CFLAGS) -o rmqcc.exe -O3 $(BASE_LDFLAGS) $(QCC_OBJS) $(COMMON_OBJS) $(WIN32GUI_OBJS) -mwindows -lcomctl32
 
 win_nocyg:
 	$(MAKE) USEGUI_CFLAGS="-DUSEGUI -DQCCONLY" R_win_nocyg
@@ -37,7 +37,7 @@ win:
 	$(MAKE) USEGUI_CFLAGS="-DUSEGUI -DQCCONLY" R_win
 
 R_qcc: $(QCC_OBJS) $(COMMON_OBJS) $(TUI_OBJS)
-	$(CC) $(BASE_CFLAGS) -o fteqcc.bin -O3 $(BASE_LDFLAGS) $(QCC_OBJS) $(TUI_OBJS) $(COMMON_OBJS)
+	$(CC) $(BASE_CFLAGS) -o rmqcc.bin -O3 $(BASE_LDFLAGS) $(QCC_OBJS) $(TUI_OBJS) $(COMMON_OBJS)
 qcc:
 	$(MAKE) USEGUI_CFLAGS="" R_qcc
 
@@ -69,12 +69,12 @@ qcc_gtk.o: qcc_gtk.c qcc.h
 	$(DO_CC) `pkg-config --cflags gtk+-2.0`
 
 R_gtkgui: $(QCC_OBJS) $(COMMON_OBJS) $(GTKGUI_OBJS)
-	$(CC) $(BASE_CFLAGS) $(USEGUI_CFLAGS) -o fteqccgui.bin -O3 $(GTKGUI_OBJS) $(QCC_OBJS) $(COMMON_OBJS) `pkg-config --libs gtk+-2.0`
+	$(CC) $(BASE_CFLAGS) $(USEGUI_CFLAGS) -o rmqccgui.bin -O3 $(GTKGUI_OBJS) $(QCC_OBJS) $(COMMON_OBJS) `pkg-config --libs gtk+-2.0`
 gtkgui:
 	$(MAKE) USEGUI_CFLAGS="-DUSEGUI -DQCCONLY" R_gtkgui
 
 clean:
-	$(RM) fteqcc.bin fteqcc.exe $(QCC_OBJS) $(COMMON_OBJS) $(VM_OBJS) $(GTKGUI_OBJS) $(WIN32GUI_OBJS) $(TUI_OBJS)
+	$(RM) rmqcc.bin rmqcc.exe $(QCC_OBJS) $(COMMON_OBJS) $(VM_OBJS) $(GTKGUI_OBJS) $(WIN32GUI_OBJS) $(TUI_OBJS)
 
 qcvm.so: $(QCC_OBJS) $(VM_OBJS) $(COMMON_OBJS)
 	$(CC) $(BASE_CFLAGS) -o $@ -O3 $(BASE_LDFLAGS) $(QCC_OBJS) $(VM_OBJS) $(COMMON_OBJS) -shared

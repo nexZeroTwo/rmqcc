@@ -616,7 +616,7 @@ enum {
 	WARN_INEFFICIENTPLUSPLUS,
 	WARN_DUPLICATEPRECOMPILER,
 	WARN_IDENTICALPRECOMPILER,
-	WARN_FTE_SPECIFIC,	//extension that only FTEQCC will have a clue about.
+	WARN_FTE_SPECIFIC,	//extension that only RMQCC will have a clue about.
 	WARN_EXTENSION_USED,	//extension that frikqcc also understands
 	WARN_IFSTRING_USED,
 	WARN_LAXCAST,	//some errors become this with a compiler flag

@@ -2970,7 +2970,7 @@ void QCC_main (int argc, char **argv)	//as part of the quake engine
 	}
 	*/
 
-	strcpy(QCC_copyright, "This file was created with ForeThought's modified QuakeC compiler\nThanks to ID Software");
+	strcpy(QCC_copyright, "This file was created with rmqcc, a fork of ForeThought's modified QuakeC compiler\nThanks to ID Software\nI love cute lolis");
 	for (p = 0; p < 5; p++)
 		strcpy(QCC_Packname[p], "");
 
