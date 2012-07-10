@@ -31,64 +31,43 @@
 PR_PrintStatement
 =================
 */
-static void PR_PrintStatement (progfuncs_t *progfuncs, int statementnum)
+/*
+void PR_PrintStatement (progfuncs_t *progfuncs, dstatement16_t *s)
 {
 	int		i;
-	unsigned int op;
-	unsigned int arg[3];
-
-	switch(current_progstate->structtype)
+printf("PR_PrintStatement is unsupported\n");
+return;
+	if ( (unsigned)s->op < OP_NUMOPS)
 	{
-	case PST_DEFAULT:
-	case PST_QTEST:
-		op = ((dstatement16_t*)current_progstate->statements + statementnum)->op;
-		arg[0] = ((dstatement16_t*)current_progstate->statements + statementnum)->a;
-		arg[1] = ((dstatement16_t*)current_progstate->statements + statementnum)->b;
-		arg[2] = ((dstatement16_t*)current_progstate->statements + statementnum)->c;
-		break;
-	case PST_KKQWSV:
-	case PST_FTE32:
-		op = ((dstatement32_t*)current_progstate->statements + statementnum)->op;
-		arg[0] = ((dstatement32_t*)current_progstate->statements + statementnum)->a;
-		arg[1] = ((dstatement32_t*)current_progstate->statements + statementnum)->b;
-		arg[2] = ((dstatement32_t*)current_progstate->statements + statementnum)->c;
-		break;
-	}
-
-#ifndef MINIMAL
-	if ( (unsigned)op < OP_NUMOPS)
-	{
-		printf ("%s ",  pr_opcodes[op].name);
-		i = strlen(pr_opcodes[op].name);
+		printf ("%s ",  pr_opcodes[s->op].name);
+		i = strlen(pr_opcodes[s->op].name);
 		for ( ; i<10 ; i++)
 			printf (" ");
 	}
-	else
-#endif
-		printf ("op%3i ");
 
-	if (op == OP_IF_F || op == OP_IFNOT_F)
-		printf ("%sbranch %i",PR_GlobalString(progfuncs, arg[0]),arg[1]);
-	else if (op == OP_GOTO)
+	if (s->op == OP_IF || s->op == OP_IFNOT)
+		printf ("%sbranch %i",PR_GlobalString(progfuncs, s->a),s->b);
+	else if (s->op == OP_GOTO)
 	{
-		printf ("branch %i",arg[0]);
+		printf ("branch %i",s->a);
 	}
-	else if ( (unsigned)(op - OP_STORE_F) < 6)
+	else if ( (unsigned)(s->op - OP_STORE_F) < 6)
 	{
-		printf ("%s",PR_GlobalString(progfuncs, arg[0]));
-		printf ("%s", PR_GlobalStringNoContents(progfuncs, arg[1]));
+		printf ("%s",PR_GlobalString(progfuncs, s->a));
+		printf ("%s", PR_GlobalStringNoContents(progfuncs, s->b));
 	}
 	else
 	{
-		if (arg[0])
-			printf ("%s",PR_GlobalString(progfuncs, arg[0]));
-		if (arg[1])
-			printf ("%s",PR_GlobalString(progfuncs, arg[1]));
-		if (arg[2])
-			printf ("%s", PR_GlobalStringNoContents(progfuncs, arg[2]));
+		if (s->a)
+			printf ("%s",PR_GlobalString(progfuncs, s->a));
+		if (s->b)
+			printf ("%s",PR_GlobalString(progfuncs, s->b));
+		if (s->c)
+			printf ("%s", PR_GlobalStringNoContents(progfuncs, s->c));
 	}
 	printf ("\n");
 }
+*/
 
 /*
 ============
@@ -513,8 +492,6 @@ char *EvaluateDebugString(progfuncs_t *progfuncs, char *key)
 	if (assignment)
 	{
 		assignment++;
-		while(*assignment == ' ')
-			assignment++;
 		switch (type&~DEF_SAVEGLOBAL)
 		{
 		case ev_string:
@@ -522,10 +499,7 @@ char *EvaluateDebugString(progfuncs_t *progfuncs, char *key)
 			break;
 
 		case ev_float:
-			if (assignment[0] == '0' && (assignment[1] == 'x' || assignment[1] == 'X'))
-				*(float*)val = strtoul(assignment, NULL, 0);
-			else
-				*(float *)val = (float)atof (assignment);
+			*(float *)val = (float)atof (assignment);
 			break;
 
 		case ev_integer:
@@ -828,12 +802,6 @@ static char *lastfile = 0;
 	int pn = pr_typecurrent;
 	int i;
 	dfunction_t *f = pr_xfunction;
-
-	if (!externs->useeditor)
-	{
-		PR_PrintStatement(progfuncs, statement);
-		return statement;
-	}
 
 	if (f && pr_progstate[pn].linenums && externs->useeditor)
 	{

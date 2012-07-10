@@ -233,21 +233,20 @@ compiler_flag_t compiler_flag[] = {
 	{&keywords_coexist,		FLAG_ASDEFAULT, "kce",			"Keywords Coexist",		"If you want keywords to NOT be disabled when they a variable by the same name is defined, check here."},
 	{&output_parms,			0,				"parms",		"Define offset parms",	"if PARM0 PARM1 etc should be defined by the compiler. These are useful if you make use of the asm keyword for function calls, or you wish to create your own variable arguments. This is an easy way to break decompilers."},	//controls weather to define PARMx for the parms (note - this can screw over some decompilers)
 	{&autoprototype,		0,				"autoproto",	"Automatic Prototyping","Causes compilation to take two passes instead of one. The first pass, only the definitions are read. The second pass actually compiles your code. This means you never have to remember to prototype functions again."},	//so you no longer need to prototype functions and things in advance.
-	{&writeasm,				0,				"wasm",			"Dump Assembler",		"Writes out a qc.asm which contains all your functions but in assembler. This is a great way to look for bugs in fteqcc, but can also be used to see exactly what your functions turn into, and thus how to optimise statements better."},			//spit out a qc.asm file, containing an assembler dump of the ENTIRE progs. (Doesn't include initialisation of constants)
+	{&writeasm,				0,				"wasm",			"Dump Assembler",		"Writes out a qc.asm which contains all your functions but in assembler. This is a great way to look for bugs in rmqcc, but can also be used to see exactly what your functions turn into, and thus how to optimise statements better."},			//spit out a qc.asm file, containing an assembler dump of the ENTIRE progs. (Doesn't include initialisation of constants)
 	{&flag_ifstring,		FLAG_MIDCOMPILE,"ifstring",		"if(string) fix",		"Causes if(string) to behave identically to if(string!="") This is most useful with addons of course, but also has adverse effects with FRIK_FILE's fgets, where it becomes impossible to determin the end of the file. In such a case, you can still use asm {IF string 2;RETURN} to detect eof and leave the function."},		//correction for if(string) no-ifstring to get the standard behaviour.
 	{&flag_iffloat,			FLAG_MIDCOMPILE,"iffloat","if(-0.0) fix","Fixes certain floating point logic."},
-	{&flag_acc,				0,				"acc",			"Reacc support",		"Reacc is a pascall like compiler. It was released before the Quake source was released. This flag has a few effects. It sorts all qc files in the current directory into alphabetical order to compile them. It also allows Reacc global/field distinctions, as well as allows ¦ as EOF. Whilst case insensativity and lax type checking are supported by reacc, they are seperate compiler flags in fteqcc."},		//reacc like behaviour of src files.
-	{&flag_caseinsensative,	0,				"caseinsens",	"Case insensativity",	"Causes fteqcc to become case insensative whilst compiling names. It's generally not advised to use this as it compiles a little more slowly and provides little benefit. However, it is required for full reacc support."},	//symbols will be matched to an insensative case if the specified case doesn't exist. This should b usable for any mod
+	{&flag_acc,				0,				"acc",			"Reacc support",		"Reacc is a pascall like compiler. It was released before the Quake source was released. This flag has a few effects. It sorts all qc files in the current directory into alphabetical order to compile them. It also allows Reacc global/field distinctions, as well as allows ¦ as EOF. Whilst case insensativity and lax type checking are supported by reacc, they are seperate compiler flags in rmqcc."},		//reacc like behaviour of src files.
+	{&flag_caseinsensative,	0,				"caseinsens",	"Case insensativity",	"Causes rmqcc to become case insensative whilst compiling names. It's generally not advised to use this as it compiles a little more slowly and provides little benefit. However, it is required for full reacc support."},	//symbols will be matched to an insensative case if the specified case doesn't exist. This should b usable for any mod
 	{&flag_laxcasts,		FLAG_MIDCOMPILE,"lax",			"Lax type checks",		"Disables many errors (generating warnings instead) when function calls or operations refer to two normally incompatible types. This is required for reacc support, and can also allow certain (evil) mods to compile that were originally written for frikqcc."},		//Allow lax casting. This'll produce loadsa warnings of course. But allows compilation of certain dodgy code.
 	{&flag_hashonly,		FLAG_MIDCOMPILE,"hashonly",		"Hash-only constants",	"Allows use of only #constant for precompiler constants, allows certain preqcc using mods to compile"},
-	{&opt_logicops,			FLAG_MIDCOMPILE,"lo",			"Logic ops",			"This changes the behaviour of your code. It generates additional if operations to early-out in if statements. With this flag, the line if (0 && somefunction()) will never call the function. It can thus be considered an optimisation. However, due to the change of behaviour, it is not considered so by fteqcc. Note that due to inprecisions with floats, this flag can cause runaway loop errors within the player walk and run functions (without iffloat also enabled). This code is advised:\nplayer_stand1:\n    if (self.velocity_x || self.velocity_y)\nplayer_run\n    if (!(self.velocity_x || self.velocity_y))"},
+	{&opt_logicops,			FLAG_MIDCOMPILE,"lo",			"Logic ops",			"This changes the behaviour of your code. It generates additional if operations to early-out in if statements. With this flag, the line if (0 && somefunction()) will never call the function. It can thus be considered an optimisation. However, due to the change of behaviour, it is not considered so by rmqcc. Note that due to inprecisions with floats, this flag can cause runaway loop errors within the player walk and run functions (without iffloat also enabled). This code is advised:\nplayer_stand1:\n    if (self.velocity_x || self.velocity_y)\nplayer_run\n    if (!(self.velocity_x || self.velocity_y))"},
 	{&flag_msvcstyle,		FLAG_MIDCOMPILE,"msvcstyle",	"MSVC-style errors",	"Generates warning and error messages in a format that msvc understands, to facilitate ide integration."},
 	{&flag_filetimes,		0,				"filetimes",	"Check Filetimes",		"Recompiles the progs only if the file times are modified."},
 	{&flag_fasttrackarrays,	FLAG_MIDCOMPILE|FLAG_ASDEFAULT,"fastarrays","fast arrays where possible",	"Generates extra instructions inside array handling functions to detect engine and use extension opcodes only in supporting engines.\nAdds a global which is set by the engine if the engine supports the extra opcodes. Note that this applies to all arrays or none."},
 	{&flag_assume_integer,	FLAG_MIDCOMPILE,"assumeint",	"Assume Integers",		"Numerical constants are assumed to be integers, instead of floats."},
 	{&pr_subscopedlocals,	FLAG_MIDCOMPILE,"subscope",		"Subscoped Locals",		"Restrict the scope of locals to the block they are actually defined within, as in C."},
 	{&verbose,				FLAG_MIDCOMPILE,"verbose",		"Verbose",				"Lots of extra compiler messages."},
-	{&flag_typeexplicit,	FLAG_MIDCOMPILE,"typeexplicit",	"Explicit types",		"All type conversions must be explicit or directly supported by instruction set."},
 	{NULL}
 };
 
@@ -283,7 +282,6 @@ int QCC_CheckParm (char *check);
 
 void QCC_BspModels (void)
 {
-/*
 	int		p;
 	char	*gamedir;
 	int		i;
@@ -312,7 +310,6 @@ void QCC_BspModels (void)
 		if (result != 0)
 			QCC_Error(ERR_INTERNAL, "QCC_BspModels() system returned non zero (failure) with: qbsp %s/%s ; light -extra %s/%s (%i)\n", gamedir, name, gamedir, name, errno);
 	}
-*/
 }
 
 // CopyString returns an offset from the string heap
@@ -321,13 +318,11 @@ int	QCC_CopyString (char *str)
 	int		old;
 	char *s;
 
-	if (!str)
-		return 0;
-	if (!*str)
-		return 1;
-
 	if (opt_noduplicatestrings)
 	{
+		if (!str || !*str)
+			return 0;
+
 		for (s = strings; s < strings+strofs; s++)
 			if (!strcmp(s, str))
 			{
@@ -492,7 +487,7 @@ void QCC_InitData (void)
 	qcc_sourcefile = NULL;
 
 	numstatements = 1;
-	strofs = 2;
+	strofs = 1;
 	numfunctions = 1;
 	numglobaldefs = 1;
 	numfielddefs = 1;
@@ -702,18 +697,6 @@ pbool QCC_WriteData (int crc)
 
 	for (def = pr.def_head.next ; def ; def = def->next)
 	{
-		if ((def->type->type == ev_struct || def->type->type == ev_union || def->arraysize) && def->deftail)
-		{
-			QCC_def_t		*d;
-			d = def;
-			while (d != def->deftail)
-			{
-				d = d->next;
-				h = d->references;
-				d->references += def->references;
-				def->references += h;
-			}
-		}
 		if (def->type->type == ev_vector || (def->type->type == ev_field && def->type->aux_type->type == ev_vector))
 		{	//do the references, so we don't get loadsa not referenced VEC_HULL_MINS_x
 			sprintf(element, "%s_x", def->name);
@@ -800,7 +783,7 @@ pbool QCC_WriteData (int crc)
 			dd->s_name = QCC_CopyString (def->name);
 			dd->ofs = G_INT(def->ofs);
 		}
-		else if ((def->scope||def->constant) && (def->type->type != ev_string || (strncmp(def->name, "dotranslate_", 12) && opt_constant_names_strings)))
+		else if ((def->scope||def->constant) && (def->type->type != ev_string || opt_constant_names_strings))
 		{
 			if (opt_constant_names)
 			{
@@ -855,10 +838,9 @@ pbool QCC_WriteData (int crc)
 				continue;
 			if (dd->ofs == qcc_globals[h].ofs)
 			{
-				if ((dd->type&~DEF_SAVEGLOBAL) != (qcc_globals[h].type&~DEF_SAVEGLOBAL))
+				if (dd->type != qcc_globals[h].type)
 				{
-					if (!(((dd->type&~DEF_SAVEGLOBAL) == ev_vector && (qcc_globals[h].type&~DEF_SAVEGLOBAL) == ev_float) ||
-						((dd->type&~DEF_SAVEGLOBAL) == ev_struct || (dd->type&~DEF_SAVEGLOBAL) == ev_union)))
+					if (dd->type != ev_vector && qcc_globals[h].type != ev_float)
 						QCC_PR_Warning(0, NULL, 0, "Mismatched union global types (%s and %s)", strings+dd->s_name, strings+qcc_globals[h].s_name);
 				}
 				//remove the saveglobal flag on the duplicate globals.
@@ -1618,7 +1600,7 @@ PR_PrintDefs
 		QCC_PR_PrintOfs (d->ofs);
 }*/
 
-QCC_type_t *QCC_PR_NewType (char *name, int basictype, pbool typedefed)
+QCC_type_t *QCC_PR_NewType (char *name, int basictype)
 {
 	if (numtypeinfos>= maxtypeinfos)
 		QCC_Error(ERR_TOOMANYTYPES, "Too many types");
@@ -1628,8 +1610,7 @@ QCC_type_t *QCC_PR_NewType (char *name, int basictype, pbool typedefed)
 	qcc_typeinfo[numtypeinfos].num_parms = 0;
 	qcc_typeinfo[numtypeinfos].param = NULL;
 	qcc_typeinfo[numtypeinfos].size = type_size[basictype];
-	qcc_typeinfo[numtypeinfos].arraysize = 0;
-	qcc_typeinfo[numtypeinfos].typedefed = typedefed;
+	qcc_typeinfo[numtypeinfos].arraysize = 1;
 
 
 	numtypeinfos++;
@@ -1665,44 +1646,40 @@ void	QCC_PR_BeginCompilation (void *memory, int memsize)
 		pr_global_defs[i] = &def_void;
 */
 
-	type_void = QCC_PR_NewType("void", ev_void, true);
-	type_string = QCC_PR_NewType("string", ev_string, true);
-	type_float = QCC_PR_NewType("float", ev_float, true);
-	type_vector = QCC_PR_NewType("vector", ev_vector, true);
-	type_entity = QCC_PR_NewType("entity", ev_entity, true);
-	type_field = QCC_PR_NewType("__field", ev_field, false);
-	type_function = QCC_PR_NewType("__function", ev_function, false);
-	type_pointer = QCC_PR_NewType("__pointer", ev_pointer, false);
-	type_integer = QCC_PR_NewType("__integer", ev_integer, true);
-	type_variant = QCC_PR_NewType("variant", ev_variant, true);
-	type_variant = QCC_PR_NewType("__variant", ev_variant, true);
+	type_void = QCC_PR_NewType("void", ev_void);
+	type_string = QCC_PR_NewType("string", ev_string);
+	type_float = QCC_PR_NewType("float", ev_float);
+	type_vector = QCC_PR_NewType("vector", ev_vector);
+	type_entity = QCC_PR_NewType("entity", ev_entity);
+	type_field = QCC_PR_NewType("__field", ev_field);
+	type_function = QCC_PR_NewType("__function", ev_function);
+	type_pointer = QCC_PR_NewType("__pointer", ev_pointer);
+	type_integer = QCC_PR_NewType("__integer", ev_integer);
+	type_variant = QCC_PR_NewType("__variant", ev_variant);
 
-	type_floatfield = QCC_PR_NewType("fieldfloat", ev_field, false);
+	type_floatfield = QCC_PR_NewType("fieldfloat", ev_field);
 	type_floatfield->aux_type = type_float;
-	type_pointer->aux_type = QCC_PR_NewType("pointeraux", ev_float, false);
-
-	type_intpointer = QCC_PR_NewType("__intpointer", ev_pointer, false);
-	type_intpointer->aux_type = type_integer;
-	type_floatpointer = QCC_PR_NewType("__floatpointer", ev_pointer, false);
-	type_floatpointer->aux_type = type_float;
+	type_pointer->aux_type = QCC_PR_NewType("pointeraux", ev_float);
 
 	type_function->aux_type = type_void;
 
 	//type_field->aux_type = type_float;
 
-	type_integer = QCC_PR_NewType("integer", ev_integer, keyword_integer?true:false);
-	type_integer = QCC_PR_NewType("int", ev_integer, keyword_integer?true:false);
+	if (keyword_integer)
+		type_integer = QCC_PR_NewType("integer", ev_integer);
+	if (keyword_int)
+		type_integer = QCC_PR_NewType("int", ev_integer);
 
 
 
 	if (output_parms)
 	{	//this tends to confuse the brains out of decompilers. :)
 		numpr_globals = 1;
-		QCC_PR_GetDef(type_vector, "RETURN", NULL, true, 0, false)->references++;
+		QCC_PR_GetDef(type_vector, "RETURN", NULL, true, 1, false)->references++;
 		for (i = 0; i < MAX_PARMS; i++)
 		{
 			sprintf(name, "PARM%i", i);
-			QCC_PR_GetDef(type_vector, name, NULL, true, 0, false)->references++;
+			QCC_PR_GetDef(type_vector, name, NULL, true, 1, false)->references++;
 		}
 	}
 	else
@@ -1920,7 +1897,7 @@ unsigned short QCC_PR_WriteProgdefs (char *filename)
 		ADD3("generated by hcc, do not modify");
 	else
 		ADD3("file generated by qcc, do not modify");
-	ADD2("File generated by FTEQCC, relevent for engine modding only, the generated crc must be the same as your engine expects.");
+	ADD2("File generated by RMQCC, relevent for engine modding only, the generated crc must be the same as your engine expects.");
 	ADD(" */\n\ntypedef struct");
 	ADD2(" globalvars_s");
 	ADD(qcva("\n{"));
@@ -2720,7 +2697,7 @@ void QCC_SetDefaultProperties (void)
 	ForcedCRC = 0;
 	defaultstatic = 0;
 
-	QCC_PR_DefineName("FTEQCC");
+	QCC_PR_DefineName("RMQCC");
 
 	if (QCC_CheckParm("/Oz"))
 	{
@@ -2791,7 +2768,6 @@ void QCC_SetDefaultProperties (void)
 	qccwarningdisabled[WARN_FTE_SPECIFIC] = true;
 	qccwarningdisabled[WARN_EXTENSION_USED] = true;
 	qccwarningdisabled[WARN_IFSTRING_USED] = true;
-	qccwarningdisabled[WARN_CORRECTEDRETURNTYPE] = true;
 
 
 
@@ -2970,7 +2946,7 @@ void QCC_main (int argc, char **argv)	//as part of the quake engine
 	}
 	*/
 
-	strcpy(QCC_copyright, "This file was created with rmqcc, a fork of ForeThought's modified QuakeC compiler\nThanks to ID Software\nI love cute lolis");
+	strcpy(QCC_copyright, "This file was created with ForeThought's modified QuakeC compiler\nThanks to ID Software");
 	for (p = 0; p < 5; p++)
 		strcpy(QCC_Packname[p], "");
 
@@ -3014,7 +2990,7 @@ void QCC_main (int argc, char **argv)	//as part of the quake engine
 	QCC_PurgeTemps();
 
 	strings = (void *)qccHunkAlloc(sizeof(char) * MAX_STRINGS);
-	strofs = 2;
+	strofs = 1;
 
 	statements = (void *)qccHunkAlloc(sizeof(QCC_dstatement_t) * MAX_STATEMENTS);
 	numstatements = 0;
@@ -3083,7 +3059,7 @@ memset(pr_immediate_string, 0, sizeof(pr_immediate_string));
 //		printf ("to build a clean data tree: qcc -copy <srcdir> <destdir>\n");
 //		printf ("to build a clean pak file: qcc -pak <srcdir> <packfile>\n");
 //		printf ("to bsp all bmodels: qcc -bspmodels <gamedir>\n");
-		printf ("-Fwasm <funcname> causes FTEQCC to dump all asm to qc.asm\n");
+		printf ("-Fwasm <funcname> causes RMQCC to dump all asm to qc.asm\n");
 		printf ("-O0 to disable optimisations\n");
 		printf ("-O1 to optimise for size\n");
 		printf ("-O2 to optimise more - some behaviours may change\n");

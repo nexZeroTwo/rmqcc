@@ -6,16 +6,6 @@
 #endif
 #include "time.h"
 
-#ifdef _WIN64
-        #ifdef _SDL
-                #define snprintf linuxlike_snprintf
-                int VARGS linuxlike_snprintf(char *buffer, int size, const char *format, ...) LIKEPRINTF(3);
-                #define vsnprintf linuxlike_vsnprintf
-                int VARGS linuxlike_vsnprintf(char *buffer, int size, const char *format, va_list argptr);
-                //void *__imp__vsnprintf = vsnprintf;
-        #endif
-#endif
-
 #define MEMBERFIELDNAME "__m%s"
 
 #define STRCMP(s1,s2) (((*s1)!=(*s2)) || strcmp(s1+1,s2+1))	//saves about 2-6 out of 120 - expansion of idea from fastqcc
@@ -74,8 +64,6 @@ QCC_type_t	*type_function;// = {ev_function/*, &def_function*/,NULL,&type_void};
 QCC_type_t	*type_pointer;// = {ev_pointer/*, &def_pointer*/};
 QCC_type_t	*type_integer;// = {ev_integer/*, &def_integer*/};
 QCC_type_t	*type_variant;// = {ev_integer/*, &def_integer*/};
-QCC_type_t	*type_floatpointer;
-QCC_type_t	*type_intpointer;
 
 QCC_type_t	*type_floatfield;// = {ev_field/*, &def_field*/, NULL, &type_float};
 
@@ -1369,7 +1357,7 @@ int QCC_PR_LexInteger (void)
 		len++;
 		pr_file_p++;
 		c = *pr_file_p;
-	} while ((c >= '0' && c<= '9') || (c == '.'&&pr_file_p[1]!='.') || (c>='a' && c <= 'f'));
+	} while ((c >= '0' && c<= '9') || c == '.' || (c>='a' && c <= 'f'));
 	pr_token[len] = 0;
 	return atoi (pr_token);
 }
@@ -1422,7 +1410,7 @@ void QCC_PR_LexNumber (void)
 			num*=base;
 			num += c -'A'+10;
 		}
-		else if (c == '.' && pr_file_p[1]!='.')
+		else if (c == '.')
 		{
 			pr_token[tokenlen++] = c;
 			pr_file_p++;
@@ -1447,15 +1435,6 @@ void QCC_PR_LexNumber (void)
 			}
 			pr_token[tokenlen++] = 0;
 			pr_immediate._float = (float)atof(pr_token);
-			return;
-		}
-		else if (c == 'f')
-		{
-			pr_token[tokenlen++] = c;
-			pr_token[tokenlen++] = 0;
-			pr_file_p++;
-			pr_immediate_type = type_float;
-			pr_immediate._float = num*sign;
 			return;
 		}
 		else if (c == 'i')
@@ -1511,8 +1490,6 @@ float QCC_PR_LexFloat (void)
 		pr_file_p++;
 		c = *pr_file_p;
 	} while ((c >= '0' && c<= '9') || (c == '.'&&pr_file_p[1]!='.'));	//only allow a . if the next isn't too...
-	if (*pr_file_p == 'f')
-		pr_file_p++;
 	pr_token[len] = 0;
 	return (float)atof (pr_token);
 }
@@ -1558,7 +1535,6 @@ void QCC_PR_LexVector (void)
 		default:
 			QCC_PR_ParseError (ERR_INVALIDVECTORIMMEDIATE, "Bad character constant");
 		}
-		pr_file_p++;
 		if (*pr_file_p != '\'')
 			QCC_PR_ParseError (ERR_INVALIDVECTORIMMEDIATE, "Bad character constant");
 		pr_file_p++;
@@ -2575,7 +2551,7 @@ void QCC_PR_Lex (void)
 		QCC_PR_LexNumber();
 		return;
 	}
-	if ( (c == '.'&&pr_file_p[1]!='.'&&pr_file_p[1] >='0' && pr_file_p[1] <= '9') || (c >= '0' && c <= '9') || ( c=='-' && pr_file_p[1]>='0' && pr_file_p[1] <='9') )
+	if ( (c == '.'&&pr_file_p[1] >='0' && pr_file_p[1] <= '9') || (c >= '0' && c <= '9') || ( c=='-' && pr_file_p[1]>='0' && pr_file_p[1] <='9') )
 	{
 		pr_token_type = tt_immediate;
 		QCC_PR_LexNumber ();
@@ -2925,6 +2901,7 @@ a new one and copies it out.
 */
 
 //0 if same
+QCC_type_t *QCC_PR_NewType (char *name, int basictype);
 int typecmp(QCC_type_t *a, QCC_type_t *b)
 {
 	if (a == b)
@@ -2971,7 +2948,7 @@ QCC_type_t *QCC_PR_DuplicateType(QCC_type_t *in)
 	if (!in)
 		return NULL;
 
-	out = QCC_PR_NewType(in->name, in->type, false);
+	out = QCC_PR_NewType(in->name, in->type);
 	out->aux_type = QCC_PR_DuplicateType(in->aux_type);
 	out->param = QCC_PR_DuplicateType(in->param);
 	ip = in->param;
@@ -3161,6 +3138,7 @@ char	pr_parm_names[MAX_PARMS][MAX_NAME];
 
 pbool recursivefunctiontype;
 
+QCC_type_t *QCC_PR_NewType (char *name, int basictype);
 //expects a ( to have already been parsed.
 QCC_type_t *QCC_PR_ParseFunctionType (int newtype, QCC_type_t *returntype)
 {
@@ -3172,7 +3150,7 @@ QCC_type_t *QCC_PR_ParseFunctionType (int newtype, QCC_type_t *returntype)
 
 	recursivefunctiontype++;
 
-	ftype = QCC_PR_NewType(type_function->name, ev_function, false);
+	ftype = QCC_PR_NewType(type_function->name, ev_function);
 
 	ftype->aux_type = returntype;	// return type
 	ftype->num_parms = 0;
@@ -3253,7 +3231,7 @@ QCC_type_t *QCC_PR_ParseFunctionTypeReacc (int newtype, QCC_type_t *returntype)
 
 	recursivefunctiontype++;
 
-	ftype = QCC_PR_NewType(type_function->name, ev_function, false);
+	ftype = QCC_PR_NewType(type_function->name, ev_function);
 
 	ftype->aux_type = returntype;	// return type
 	ftype->num_parms = 0;
@@ -3280,13 +3258,13 @@ QCC_type_t *QCC_PR_ParseFunctionTypeReacc (int newtype, QCC_type_t *returntype)
 				{
 					sprintf(argname, "arg%i", ftype->num_parms);
 					name = argname;
-					nptype = QCC_PR_NewType("Variant", ev_variant, false);
+					nptype = QCC_PR_NewType("Variant", ev_variant);
 				}
 				else if (QCC_PR_CheckName("vect"))	//this can only be of vector sizes, so...
 				{
 					sprintf(argname, "arg%i", ftype->num_parms);
 					name = argname;
-					nptype = QCC_PR_NewType("Vector", ev_vector, false);
+					nptype = QCC_PR_NewType("Vector", ev_vector);
 				}
 				else
 				{
@@ -3324,7 +3302,7 @@ QCC_type_t *QCC_PR_ParseFunctionTypeReacc (int newtype, QCC_type_t *returntype)
 QCC_type_t *QCC_PR_PointerType (QCC_type_t *pointsto)
 {
 	QCC_type_t	*ptype, *e;
-	ptype = QCC_PR_NewType("ptr", ev_pointer, false);
+	ptype = QCC_PR_NewType("ptr", ev_pointer);
 	ptype->aux_type = pointsto;
 	e = QCC_PR_FindType (ptype);
 	if (e == ptype)
@@ -3340,7 +3318,7 @@ QCC_type_t *QCC_PR_FieldType (QCC_type_t *pointsto)
 	QCC_type_t	*ptype;
 	char name[128];
 	sprintf(name, "FIELD TYPE(%s)", pointsto->name);
-	ptype = QCC_PR_NewType(name, ev_field, false);
+	ptype = QCC_PR_NewType(name, ev_field);
 	ptype->aux_type = pointsto;
 	ptype->size = ptype->aux_type->size;
 	return QCC_PR_FindType (ptype);
@@ -3364,14 +3342,14 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 
 	if (QCC_PR_CheckToken (".."))	//so we don't end up with the user specifying '. .vector blah' (hexen2 added the .. token for array ranges)
 	{
-		newt = QCC_PR_NewType("FIELD TYPE", ev_field, false);
+		newt = QCC_PR_NewType("FIELD TYPE", ev_field);
 		newt->aux_type = QCC_PR_ParseType (false, false);
 
 		newt->size = newt->aux_type->size;
 
 		newt = QCC_PR_FindType (newt);
 
-		type = QCC_PR_NewType("FIELD TYPE", ev_field, false);
+		type = QCC_PR_NewType("FIELD TYPE", ev_field);
 		type->aux_type = newt;
 
 		type->size = type->aux_type->size;
@@ -3382,7 +3360,7 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 	}
 	if (QCC_PR_CheckToken ("."))
 	{
-		newt = QCC_PR_NewType("FIELD TYPE", ev_field, false);
+		newt = QCC_PR_NewType("FIELD TYPE", ev_field);
 		newt->aux_type = QCC_PR_ParseType (false, false);
 
 		newt->size = newt->aux_type->size;
@@ -3410,8 +3388,6 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 		/* Look to see if this type is already defined */
 		for(i=0;i<numtypeinfos;i++)
 		{
-			if (!qcc_typeinfo[i].typedefed)
-				continue;
 			if (STRCMP(qcc_typeinfo[i].name, classname) == 0)
 			{
 				newt = &qcc_typeinfo[i];
@@ -3426,7 +3402,7 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 			QCC_PR_ParseError(ERR_REDECLARATION, "Redeclaration of class %s", classname);
 
 		if (!newt)
-			newt = QCC_PR_NewType(classname, ev_entity, true);
+			newt = QCC_PR_NewType(classname, ev_entity);
 
 		newt->size=type_entity->size;
 
@@ -3480,10 +3456,10 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 				newparm->name = QCC_CopyString("")+strings;
 
 			sprintf(membername, "%s::"MEMBERFIELDNAME, classname, newparm->name);
-			fieldtype = QCC_PR_NewType(newparm->name, ev_field, false);
+			fieldtype = QCC_PR_NewType(newparm->name, ev_field);
 			fieldtype->aux_type = newparm;
 			fieldtype->size = newparm->size;
-			QCC_PR_GetDef(fieldtype, membername, pr_scope, 2, 0, false);
+			QCC_PR_GetDef(fieldtype, membername, pr_scope, 2, 1, false);
 
 
 			newparm->ofs = 0;//newt->size;
@@ -3503,7 +3479,7 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 	}
 	if (QCC_PR_CheckKeyword (keyword_struct, "struct"))
 	{
-		newt = QCC_PR_NewType("struct", ev_struct, false);
+		newt = QCC_PR_NewType("struct", ev_struct);
 		newt->size=0;
 		QCC_PR_Expect("{");
 
@@ -3518,7 +3494,7 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 			{
 				if (!newparm)
 					QCC_PR_ParseError(ERR_NOTANAME, "element missing type");
-				newparm = QCC_PR_NewType(newparm->name, newparm->type, false);
+				newparm = QCC_PR_NewType(newparm->name, newparm->type);
 			}
 			else
 				newparm = QCC_PR_ParseType(true, false);
@@ -3537,7 +3513,7 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 			else
 				newparm->name = QCC_CopyString("")+strings;
 			newparm->ofs = newt->size;
-			newt->size += newparm->size*(newparm->arraysize?newparm->arraysize:1);
+			newt->size += newparm->size*newparm->arraysize;
 			newt->num_parms++;
 
 			if (type)
@@ -3550,7 +3526,7 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 	}
 	if (QCC_PR_CheckKeyword (keyword_union, "union"))
 	{
-		newt = QCC_PR_NewType("union", ev_union, false);
+		newt = QCC_PR_NewType("union", ev_union);
 		newt->size=0;
 		QCC_PR_Expect("{");
 
@@ -3560,12 +3536,11 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 		newparm = NULL;
 		while (!QCC_PR_CheckToken("}"))
 		{
-			int arraysize;
 			if (QCC_PR_CheckToken(","))
 			{
 				if (!newparm)
 					QCC_PR_ParseError(ERR_NOTANAME, "element missing type");
-				newparm = QCC_PR_NewType(newparm->name, newparm->type, false);
+				newparm = QCC_PR_NewType(newparm->name, newparm->type);
 			}
 			else
 				newparm = QCC_PR_ParseType(true, false);
@@ -3583,11 +3558,8 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 				QCC_PR_Expect(";");
 			}
 			newparm->ofs = 0;
-			arraysize = newparm->arraysize;
-			if (!arraysize)
-				arraysize = 1;
-			if (newparm->size*arraysize > newt->size)
-				newt->size = newparm->size*arraysize;
+			if (newparm->size > newt->size*newparm->arraysize)
+				newt->size = newparm->size*newparm->arraysize;
 			newt->num_parms++;
 
 			if (type)
@@ -3601,8 +3573,6 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail)
 	type = NULL;
 	for (i = 0; i < numtypeinfos; i++)
 	{
-		if (!qcc_typeinfo[i].typedefed)
-			continue;
 		if (!STRCMP(qcc_typeinfo[i].name, name))
 		{
 			type = &qcc_typeinfo[i];

@@ -76,10 +76,10 @@ void PRAddressableRelocate(progfuncs_t *progfuncs, char *oldb, char *newb, int o
 //for 64bit systems. :)
 //addressable memory is memory available to the vm itself for writing.
 //once allocated, it cannot be freed for the lifetime of the VM.
-void *PRAddressableExtend(progfuncs_t *progfuncs, int ammount)
+void *PRAddressableAlloc(progfuncs_t *progfuncs, int ammount)
 {
 	ammount = (ammount + 4)&~3;	//round up to 4
-	if (prinst->addressableused + ammount > prinst->addressablesize)
+	if (addressableused + ammount > addressablesize)
 	{
 		/*only do this if the caller states that it can cope with addressable-block relocations/resizes*/
 		if (externs->addressablerelocated)
@@ -89,318 +89,74 @@ void *PRAddressableExtend(progfuncs_t *progfuncs, int ammount)
 		#if 0//def _DEBUG
 			int oldtot = addressablesize;
 		#endif
-			int newsize = (prinst->addressableused + ammount + 4096) & ~(4096-1);
-			newblock = VirtualAlloc (NULL, prinst->addressablesize, MEM_RESERVE, PAGE_NOACCESS);
+			int newsize = (addressableused + ammount + 4096) & ~(4096-1);
+			newblock = VirtualAlloc (NULL, addressablesize, MEM_RESERVE, PAGE_NOACCESS);
 			if (newblock)
 			{
-				VirtualAlloc (newblock, prinst->addressableused, MEM_COMMIT, PAGE_READWRITE);
-				memcpy(newblock, prinst->addressablehunk, prinst->addressableused);
+				VirtualAlloc (newblock, addressableused, MEM_COMMIT, PAGE_READWRITE);
+				memcpy(newblock, addressablehunk, addressableused);
 		#if 0//def _DEBUG
-				VirtualAlloc (prinst->addressablehunk, oldtot, MEM_RESERVE, PAGE_NOACCESS);
+				VirtualAlloc (addressablehunk, oldtot, MEM_RESERVE, PAGE_NOACCESS);
 		#else
-				VirtualFree (prinst->addressablehunk, 0, MEM_RELEASE);
+				VirtualFree (addressablehunk, 0, MEM_RELEASE);
 		#endif
-				PRAddressableRelocate(progfuncs, prinst->addressablehunk, newblock, prinst->addressableused);
-				prinst->addressablehunk = newblock;
-				prinst->addressablesize = newsize;
+				PRAddressableRelocate(progfuncs, addressablehunk, newblock, addressableused);
+				addressablehunk = newblock;
+				addressablesize = newsize;
 			}
 #else
 			char *newblock;
-			int newsize = (prinst->addressableused + ammount + 1024*1024) & ~(1024*1024-1);
-			newblock = realloc(newblock, prinst->addressablesize);
+			int newsize = (addressableused + ammount + 1024*1024) & ~(1024*1024-1);
+			newblock = realloc(newblock, addressablesize);
 			if (newblock)
 			{
-				PRAddressableRelocate(progfuncs, prinst->addressablehunk, newblock, prinst->addressableused);
-				prinst->addressablehunk = newblock;
-				prinst->addressablesize = newsize;
+				PRAddressableRelocate(progfuncs, addressablehunk, newblock, addressableused);
+				addressablehunk = newblock;
+				addressablesize = newsize;
 			}
 #endif
 		}
 
-		if (prinst->addressableused + ammount > prinst->addressablesize)
+		if (addressableused + ammount > addressablesize)
 			Sys_Error("Not enough addressable memory for progs VM");
 	}
 
-	prinst->addressableused += ammount;
+	addressableused += ammount;
 
 #ifdef _WIN32
-	if (!VirtualAlloc (prinst->addressablehunk, prinst->addressableused, MEM_COMMIT, PAGE_READWRITE))
+	if (!VirtualAlloc (addressablehunk, addressableused, MEM_COMMIT, PAGE_READWRITE))
 		Sys_Error("VirtualAlloc failed. Blame windows.");
 #endif
 
-	return &prinst->addressablehunk[prinst->addressableused-ammount];
-}
-
-
-#define MARKER 0xF1E3E3E7u
-typedef struct
-{
-	unsigned int next;
-	unsigned int prev;
-	unsigned int size;
-} qcmemfreeblock_t;
-typedef struct
-{
-	unsigned int marker;
-	unsigned int size;
-} qcmemusedblock_t;
-static void PF_fmem_unlink(progfuncs_t *pr, qcmemfreeblock_t *p)
-{
-	qcmemfreeblock_t *np;
-	if (p->prev)
-	{
-		np = (qcmemfreeblock_t*)(pr->stringtable + p->prev);
-		np->next = p->next;
-	}
-	else
-		pr->inst->mfreelist = p->next;
-	if (p->next)
-	{
-		np = (qcmemfreeblock_t*)(pr->stringtable + p->next);
-		np->prev = p->prev;
-	}
-}
-static void PR_memvalidate (progfuncs_t *progfuncs)
-{
-	qcmemfreeblock_t *p;
-	qcmemusedblock_t *ub = NULL;
-	unsigned int b,l;
-
-	b = prinst->mfreelist;
-	l = 0;
-	while (b)
-	{
-		if (b < 0 || b >= prinst->addressableused)
-		{
-			printf("PF_memalloc: memory corruption\n");
-			PR_StackTrace(progfuncs);
-			return;
-		}
-		p = (qcmemfreeblock_t*)(progfuncs->stringtable + b);
-
-		if (p->prev != l ||
-			p->next && p->next < b + p->size ||
-			p->next >= prinst->addressableused ||
-			b + p->size >= prinst->addressableused ||
-			p->prev >= b)
-		{
-			printf("PF_memalloc: memory corruption\n");
-			PR_StackTrace(progfuncs);
-			return;
-		}
-		l = b;
-		b = p->next;
-	}
-}
-static void *PR_memalloc (progfuncs_t *progfuncs, unsigned int size)
-{
-	qcmemfreeblock_t *p, *np;
-	qcmemusedblock_t *ub = NULL;
-	unsigned int b,n;
-	/*round size up*/
-	size = (size+sizeof(qcmemusedblock_t) + 63) & ~63;
-
-	b = prinst->mfreelist;
-	while (b)
-	{
-		if (b < 0 || b >= prinst->addressableused)
-		{
-			printf("PF_memalloc: memory corruption\n");
-			PR_StackTrace(progfuncs);
-			return NULL;
-		}
-		p = (qcmemfreeblock_t*)(progfuncs->stringtable + b);
-		if (p->size >= size)
-		{
-			if (p->next && p->next < b + p->size ||
-				p->next >= prinst->addressableused ||
-				b + p->size >= prinst->addressableused ||
-				p->prev >= b)
-			{
-				printf("PF_memalloc: memory corruption\n");
-				PR_StackTrace(progfuncs);
-				return NULL;
-			}
-
-			ub = (qcmemusedblock_t*)p;
-			if (p->size > size + 63)
-			{
-				/*make a new header just after it, with basically the same properties, and shift the important fields over*/
-				n = b + size;
-				np = (qcmemfreeblock_t*)(progfuncs->stringtable + b + size);
-				np->prev = p->prev;
-				np->next = p->next;
-				np->size = p->size - size;
-				if (np->prev)
-				{
-					p = (qcmemfreeblock_t*)(progfuncs->stringtable + np->prev);
-					p->next = n;
-				}
-				else
-					prinst->mfreelist = n;
-				if (p->next)
-				{
-					p = (qcmemfreeblock_t*)(progfuncs->stringtable + np->next);
-					p->prev = n;
-				}
-			}
-			else
-			{
-				size = p->size; /*alloc the entire block*/
-				/*unlink this entry*/
-				PF_fmem_unlink(progfuncs, p);
-			}
-			break;
-		}
-		b = p->next;
-	}
-
-	/*assign more space*/
-	if (!ub)
-	{
-		ub = PRAddressableExtend(progfuncs, size);
-		if (!ub)
-		{
-			printf("PF_memalloc: memory exausted\n");
-			PR_StackTrace(progfuncs);
-			return NULL;
-		}
-	}
-	memset(ub, 0, size);
-	ub->marker = MARKER;
-	ub->size = size;
-
-//	PR_memvalidate(progfuncs);
-
-	return ub+1;
-}
-static void PR_memfree (progfuncs_t *progfuncs, void *memptr)
-{
-	qcmemusedblock_t *ub;
-	qcmemfreeblock_t *p, *np, *pp; 
-	unsigned int pa, na;	//prev addr, next addr
-	unsigned int size;
-	unsigned int ptr = memptr?((char*)memptr - progfuncs->stringtable):0;
-
-	/*freeing NULL is ignored*/
-	if (!ptr)
-		return;
-//	PR_memvalidate(progfuncs);
-	if (ptr < sizeof(qcmemusedblock_t) || ptr >= prinst->addressableused)
-	{
-		printf("PF_memfree: pointer invalid - out of range (%u >= %u)\n", ptr, prinst->addressableused);
-		PR_StackTrace(progfuncs);
-		return;
-	}
-
-	ub = (qcmemusedblock_t*)(progfuncs->stringtable + ptr);
-	ub--;
-	ptr = (char*)ub - progfuncs->stringtable;
-	if (ub->marker != MARKER || ub->size <= sizeof(*ub) || ptr + ub->size > (unsigned int)prinst->addressableused)
-	{
-		printf("PF_memfree: memory corruption or double free\n");
-		PR_StackTrace(progfuncs);
-		return;
-	}
-	ub->marker = 0;
-	size = ub->size;
-
-	for (na = prinst->mfreelist, pa = 0; ;)
-	{
-		if (na < 0 || na >= prinst->addressableused)
-		{
-			printf("PF_memfree: memory corruption\n");
-			PR_StackTrace(progfuncs);
-			return;
-		}
-		if (!na || na >= ptr)
-		{
-			np = (qcmemfreeblock_t*)(progfuncs->stringtable + pa);
-			if (pa && pa+np->size>ptr)
-			{
-				printf("PF_memfree: double free\n");
-				PR_StackTrace(progfuncs);
-				return;
-			}
-
-			/*generate the free block, now we know its proper values*/
-			p = (qcmemfreeblock_t*)(progfuncs->stringtable + ptr);
-			np = na?(qcmemfreeblock_t*)(progfuncs->stringtable + na):NULL;
-			pp = pa?(qcmemfreeblock_t*)(progfuncs->stringtable + pa):NULL;
-
-			p->prev = pa;
-			p->next = na;
-			p->size = size;
-
-			/*update the next's previous*/
-			if (na)
-			{
-				np->prev = ptr;
-			
-				/*extend this block and kill the next if they are adjacent*/
-				if (p->next == ptr + size)
-				{
-					p->size += np->size; 
-					PF_fmem_unlink(progfuncs, np);
-				}
-			}
-
-			/*update the link to get here*/
-			if (!pa)
-				prinst->mfreelist = ptr;
-			else
-			{
-				pp->next = ptr;
-
-				/*we're adjacent to the previous block, so merge them by killing the newly freed region*/
-				if (na && pa + np->size == ptr)
-				{
-					p->size += np->size;
-					PF_fmem_unlink(progfuncs, np);
-				}
-
-			}
-			break;
-		}
-
-		pa = na;
-		p = (qcmemfreeblock_t*)(progfuncs->stringtable + pa);
-		na = p->next;
-	}
-
-//	PR_memvalidate(progfuncs);
+	return &addressablehunk[addressableused-ammount];
 }
 
 void PRAddressableFlush(progfuncs_t *progfuncs, int totalammount)
 {
-	prinst->addressableused = 0;
+	addressableused = 0;
 	if (totalammount < 0)	//flush
 	{
-		totalammount = prinst->addressablesize;
+		totalammount = addressablesize;
 //		return;
 	}
 
 #ifdef _WIN32
-	if (prinst->addressablehunk && prinst->addressablesize != totalammount)
+	if (addressablehunk && addressablesize != totalammount)
 	{
-		VirtualFree(prinst->addressablehunk, 0, MEM_RELEASE);	//doesn't this look complicated? :p
-		prinst->addressablehunk = NULL;
+		VirtualFree(addressablehunk, 0, MEM_RELEASE);	//doesn't this look complicated? :p
+		addressablehunk = NULL;
 	}
-	if (!prinst->addressablehunk)
-		prinst->addressablehunk = VirtualAlloc (prinst->addressablehunk, totalammount, MEM_RESERVE, PAGE_NOACCESS);
+	if (!addressablehunk)
+		addressablehunk = VirtualAlloc (addressablehunk, totalammount, MEM_RESERVE, PAGE_NOACCESS);
 #else
-	if (prinst->addressablehunk && prinst->addressablesize != totalammount)
-	{
-		free(prinst->addressablehunk);
-		prinst->addressablehunk = NULL;
-	}
-	if (!prinst->addressablehunk)
-		prinst->addressablehunk = malloc(totalammount);	//linux will allocate-on-use anyway, which is handy.
-//	memset(prinst->addressablehunk, 0xff, totalammount);
+	if (addressablehunk)
+		free(addressablehunk);
+	addressablehunk = malloc(totalammount);	//linux will allocate-on-use anyway, which is handy.
+//	memset(addressablehunk, 0xff, totalammount);
 #endif
-	if (!prinst->addressablehunk)
+	if (!addressablehunk)
 		Sys_Error("Out of memory\n");
-	prinst->addressablesize = totalammount;
+	addressablesize = totalammount;
 }
 
 int PR_InitEnts(progfuncs_t *progfuncs, int max_ents)
@@ -414,7 +170,7 @@ int PR_InitEnts(progfuncs_t *progfuncs, int max_ents)
 	prinst->edicttable = PRHunkAlloc(progfuncs, maxedicts*sizeof(struct edicts_s *));
 	sv_edicts = PRHunkAlloc(progfuncs, externs->edictsize);
 	prinst->edicttable[0] = sv_edicts;
-	((edictrun_t*)prinst->edicttable[0])->fields = PRAddressableExtend(progfuncs, max_fields_size);
+	((edictrun_t*)prinst->edicttable[0])->fields = PRAddressableAlloc(progfuncs, max_fields_size);
 	QC_ClearEdict(progfuncs, sv_edicts);
 	sv_num_edicts = 1;
 
@@ -749,7 +505,7 @@ string_t PR_StringToProgs			(progfuncs_t *progfuncs, char *str)
 	if (!str)
 		return 0;
 
-	if (str >= progfuncs->stringtable && str < progfuncs->stringtable + prinst->addressableused)
+	if (str-progfuncs->stringtable < addressableused)
 		return str - progfuncs->stringtable;
 
 	for (i = prinst->numallocedstrings-1; i >= 0; i--)
@@ -859,7 +615,7 @@ char *ASMCALL PR_StringToNative				(progfuncs_t *progfuncs, string_t str)
 		}
 	}
 
-	if ((unsigned int)str >= (unsigned int)prinst->addressableused)
+	if (str >= addressableused)
 	{
 		printf("invalid string offset %x\n", str);
 		PR_StackTrace(progfuncs);
@@ -899,38 +655,6 @@ string_t PR_AllocTempString			(progfuncs_t *progfuncs, char *str)
 
 	prinst->tempstrings[i] = memalloc(strlen(str)+1);
 	strcpy(prinst->tempstrings[i], str);
-
-	return (string_t)((unsigned int)i | 0x40000000);
-}
-string_t PR_AllocTempStringLen			(progfuncs_t *progfuncs, char **str, unsigned int len)
-{
-	char **ntable;
-	int newmax;
-	int i;
-
-	if (!str)
-		return 0;
-
-	if (prinst->numtempstrings == prinst->maxtempstrings)
-	{
-		newmax = prinst->maxtempstrings += 1024;
-		prinst->maxtempstrings += 1024;
-		ntable = memalloc(sizeof(char*) * newmax);
-		memcpy(ntable, prinst->tempstrings, sizeof(char*) * prinst->numtempstrings);
-		prinst->maxtempstrings = newmax;
-		if (prinst->tempstrings)
-			memfree(prinst->tempstrings);
-		prinst->tempstrings = ntable;
-	}
-
-	i = prinst->numtempstrings;
-	if (i == 0x10000000)
-		return 0;
-
-	prinst->numtempstrings++;
-
-	prinst->tempstrings[i] = memalloc(len);
-	*str = prinst->tempstrings[i];
 
 	return (string_t)((unsigned int)i | 0x40000000);
 }
@@ -1047,9 +771,7 @@ progfuncs_t deffuncs = {
 	PR_QueryField,
 	QC_ClearEdict,
 	QC_FindPrefixedGlobals,
-	PR_memalloc,
-	PR_AllocTempStringLen,
-	PR_memfree,
+	PRAddressableAlloc
 };
 #undef printf
 
@@ -1104,7 +826,6 @@ progexterns_t defexterns = {
 #undef extensionbuiltin
 #undef field
 #undef shares
-#undef maxedicts
 #undef sv_num_edicts
 
 
@@ -1121,10 +842,10 @@ void CloseProgs(progfuncs_t *inst)
 
 	f = inst->parms->memfree;
 
-	for ( i=1 ; i<inst->inst->maxedicts; i++)
+	for ( i=1 ; i<inst->maxedicts; i++)
 	{
-		e = (edictrun_t *)(inst->inst->edicttable[i]);
-		inst->inst->edicttable[i] = NULL;
+		e = (edictrun_t *)(inst->prinst->edicttable[i]);
+		inst->prinst->edicttable[i] = NULL;
 		if (e)
 		{
 //			e->entnum = i;
@@ -1135,17 +856,17 @@ void CloseProgs(progfuncs_t *inst)
 	PRHunkFree(inst, 0);
 
 #ifdef _WIN32
-	VirtualFree(inst->inst->addressablehunk, 0, MEM_RELEASE);	//doesn't this look complicated? :p
+	VirtualFree(inst->addressablehunk, 0, MEM_RELEASE);	//doesn't this look complicated? :p
 #else
-	free(inst->inst->addressablehunk);
+	free(inst->addressablehunk);
 #endif
 
-	if (inst->inst->allocedstrings)
-		f(inst->inst->allocedstrings);
-	inst->inst->allocedstrings = NULL;
-	if (inst->inst->tempstrings)
-		f(inst->inst->tempstrings);
-	inst->inst->tempstrings = NULL;
+	if (inst->prinst->allocedstrings)
+		f(inst->prinst->allocedstrings);
+	inst->prinst->allocedstrings = NULL;
+	if (inst->prinst->tempstrings)
+		f(inst->prinst->tempstrings);
+	inst->prinst->tempstrings = NULL;
 
 
 /*
@@ -1156,11 +877,11 @@ void CloseProgs(progfuncs_t *inst)
 		inst->prinst->extensionbuiltin = eb;
 	}
 */
-	if (inst->inst->field)
-		f(inst->inst->field);
-	if (inst->inst->shares)
-		f(inst->inst->shares);	//free memory
-	f(inst->inst);
+	if (inst->prinst->field)
+		f(inst->prinst->field);
+	if (inst->prinst->shares)
+		f(inst->prinst->shares);	//free memory
+	f(inst->prinst);
 	f(inst);
 }
 
@@ -1201,17 +922,15 @@ progfuncs_t * InitProgs(progexterns_t *ext)
 	}	
 #undef memalloc
 #undef pr_trace
-#undef pr_progstate
-#undef pr_argc
 	funcs = ext->memalloc(sizeof(progfuncs_t));	
 	memcpy(funcs, &deffuncs, sizeof(progfuncs_t));
 
-	funcs->inst = ext->memalloc(sizeof(prinst_t));
-	memset(funcs->inst,0, sizeof(prinst_t));
+	funcs->prinst = ext->memalloc(sizeof(prinst_t));
+	memset(funcs->prinst,0, sizeof(prinst_t));
 
-	funcs->pr_trace = &funcs->inst->pr_trace;
-	funcs->progstate = &funcs->inst->progstate;
-	funcs->callargc = &funcs->inst->pr_argc;
+	funcs->pr_trace = &funcs->prinst->pr_trace;
+	funcs->progstate = &funcs->pr_progstate;
+	funcs->callargc = &funcs->pr_argc;
 
 	funcs->parms = ext;
 

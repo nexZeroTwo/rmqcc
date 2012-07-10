@@ -69,22 +69,6 @@ void *Hash_GetInsensative(hashtable_t *table, const char *name)
 	}
 	return NULL;
 }
-void *Hash_GetInsensativeBucket(hashtable_t *table, const char *name)
-{
-	unsigned int bucknum = Hash_KeyInsensative(name, table->numbuckets);
-	bucket_t *buck;
-
-	buck = table->bucket[bucknum];
-
-	while(buck)
-	{
-		if (!stricmp(name, buck->key.string))
-			return buck;
-
-		buck = buck->next;
-	}
-	return NULL;
-}
 void *Hash_GetKey(hashtable_t *table, unsigned int key)
 {
 	unsigned int bucknum = key%table->numbuckets;
@@ -253,35 +237,32 @@ void Hash_Remove(hashtable_t *table, const char *name)
 void Hash_RemoveData(hashtable_t *table, const char *name, void *data)
 {
 	unsigned int bucknum = Hash_Key(name, table->numbuckets);
-	bucket_t **link, *buck;	
+	bucket_t *buck;	
 
-	for (link = &table->bucket[bucknum]; *link; link = &(*link)->next)
-	{
-		buck = *link;
-		if (buck->data == data && !stricmp(name, buck->key.string))
+	buck = table->bucket[bucknum];
+
+	if (buck->data == data)
+		if (!STRCMP(name, buck->key.string))
 		{
-			*link = buck->next;
+			table->bucket[bucknum] = buck->next;
 			return;
 		}
+
+
+	while(buck->next)
+	{
+		if (buck->next->data == data)
+			if (!STRCMP(name, buck->next->key.string))
+			{
+				buck->next = buck->next->next;
+				return;
+			}
+
+		buck = buck->next;
 	}
 	return;
 }
-void Hash_RemoveBucket(hashtable_t *table, const char *name, bucket_t *data)
-{
-	unsigned int bucknum = Hash_Key(name, table->numbuckets);
-	bucket_t **link, *buck;	
 
-	for (link = &table->bucket[bucknum]; *link; link = &(*link)->next)
-	{
-		buck = *link;
-		if (buck == data && !stricmp(name, buck->key.string))
-		{
-			*link = buck->next;
-			return;
-		}
-	}
-	return;
-}
 
 void Hash_RemoveKey(hashtable_t *table, unsigned int key)
 {

@@ -112,9 +112,9 @@ enum qcop_e {
 	//these following ones are Hexen 2 constants.
 	
 	OP_MULSTORE_F,
-	OP_MULSTORE_VF,
+	OP_MULSTORE_V,
 	OP_MULSTOREP_F,
-	OP_MULSTOREP_VF,
+	OP_MULSTOREP_V,
 
 	OP_DIVSTORE_F,	//70
 	OP_DIVSTOREP_F,
@@ -260,8 +260,8 @@ enum qcop_e {
 
 	//-------------------------------------
 	//string manipulation.
-	OP_ADD_SF,	//(char*)c = (char*)a + (float)b    add_fi->i
-	OP_SUB_S,	//(float)c = (char*)a - (char*)b    sub_ii->f
+	OP_ADD_SF,	//(char*)c = (char*)a + (float)b
+	OP_SUB_S,	//(float)c = (char*)a - (char*)b
 	OP_STOREP_C,//(float)c = *(char*)b = (float)a
 	OP_LOADP_C,	//(float)c = *(char*)
 	//-------------------------------------
@@ -304,7 +304,7 @@ enum qcop_e {
 	OP_BOUNDCHECK,
 
 //back to ones that we do use.
-	OP_UNUSED,	//used to be OP_STOREP_P, which is now emulated with OP_STOREP_I, rmqcc nor fte generated it
+	OP_STOREP_P,
 	OP_PUSH,	//push 4octets onto the local-stack (which is ALWAYS poped on function return). Returns a pointer.
 	OP_POP,		//pop those ones that were pushed (don't over do it). Needs assembler.
 
@@ -350,13 +350,7 @@ enum qcop_e {
 	OP_SUBSTORE_FI,
 	OP_SUBSTOREP_FI,
 
-	OP_MULSTORE_VI,
-	OP_MULSTOREP_VI,
-
-	OP_LOADA_STRUCT,
-	OP_STOREP_P,
-
-	OP_NUMOPS
+	OP_NUMOPS			//246
 };
 
 #define	MAX_PARMS	8

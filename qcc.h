@@ -306,7 +306,6 @@ typedef struct QCC_type_s
 	unsigned int ofs;	//inside a structure.
 	unsigned int size;
 	unsigned int arraysize;
-	pbool typedefed;
 	char *name;
 } QCC_type_t;
 int typecmp(QCC_type_t *a, QCC_type_t *b);
@@ -343,11 +342,10 @@ typedef struct QCC_def_s
 	int s_line;
 
 	int arraysize;
-	pbool shared:1;
-	pbool saved:1;
-	pbool isstatic:1;
-	pbool subscoped_away:1;
-	pbool followptr:1;
+	pbool shared;
+	pbool saved;
+	pbool isstatic;
+	pbool subscoped_away;
 
 	temp_t *temp;
 } QCC_def_t;
@@ -375,7 +373,7 @@ typedef union QCC_eval_s
 const extern	unsigned int		type_size[];
 //extern	QCC_def_t	*def_for_type[9];
 
-extern	QCC_type_t	*type_void, *type_string, *type_float, *type_vector, *type_entity, *type_field, *type_function, *type_pointer, *type_floatpointer, *type_intpointer, *type_integer, *type_variant, *type_floatfield;
+extern	QCC_type_t	*type_void, *type_string, *type_float, *type_vector, *type_entity, *type_field, *type_function, *type_pointer, *type_integer, *type_variant, *type_floatfield;
 
 struct QCC_function_s
 {
@@ -486,7 +484,6 @@ extern pbool flag_fasttrackarrays;
 extern pbool flag_assume_integer;
 extern pbool flag_msvcstyle;
 extern pbool flag_filetimes;
-extern pbool flag_typeexplicit;
 
 extern pbool opt_overlaptemps;
 extern pbool opt_shortenifnots;
@@ -538,7 +535,7 @@ void QCC_PR_PrintStatement (QCC_dstatement_t *s);
 void QCC_PR_Lex (void);
 // reads the next token into pr_token and classifies its type
 
-QCC_type_t *QCC_PR_NewType (char *name, int basictype, pbool typedefed);
+QCC_type_t *QCC_PR_NewType (char *name, int basictype);
 QCC_type_t *QCC_PointerTypeTo(QCC_type_t *type);
 QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail);
 extern pbool type_inlinefunction;

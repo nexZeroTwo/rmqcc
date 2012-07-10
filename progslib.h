@@ -109,7 +109,7 @@ struct progfuncs_s {
 	pbool	(*Decompile)				(progfuncs_t *prinst, char *fname);
 
 
-	struct prinst_s	*inst;	//internal variables. Leave alone.
+	struct prinst_s	*prinst;	//internal variables. Leave alone.
 
 	int		*callargc;	//number of args of built-in call
 	void	(*RegisterBuiltin)			(progfuncs_t *prinst, char *, builtin_t);
@@ -139,10 +139,7 @@ struct progfuncs_s {
 	void (*EntClear)					(progfuncs_t *progfuncs, struct edict_s *e);
 	void (*FindPrefixGlobals)			(progfuncs_t *progfuncs, char *prefix, void (*found) (progfuncs_t *progfuncs, char *name, union eval_s *val, etype_t type) );
 
-	void *(*AddressableAlloc)			(progfuncs_t *progfuncs, unsigned int ammount); /*returns memory within the qc block, use stringtoprogs to get a usable qc pointer/string*/
-
-	string_t (*AllocTempString)			(progfuncs_t *prinst, char **str, unsigned int len);
-	void (*AddressableFree)				(progfuncs_t *progfuncs, void *mem); /*frees a block of addressable memory*/
+	void *(*AddressableAlloc)			(progfuncs_t *progfuncs, int ammount); /*returns memory within the qc block, use stringtoprogs to get a usable qc pointer/string*/
 };
 
 typedef struct progexterns_s {
@@ -262,7 +259,6 @@ typedef union eval_s
 #define PR_AddString(pf, ed, len)							(*pf->AddString)			(pf, ed, len)
 #define PR_Alloc(pf,size,whatfor)							(*pf->Tempmem)				(pf, size, whatfor)
 #define PR_AddressableAlloc(pf,size)						(*pf->AddressableAlloc)		(pf, size)
-#define PR_AddressableFree(pf,mem)							(*pf->AddressableFree)		(pf, mem)
 
 #define PROG_TO_EDICT(pf, ed)								(*pf->ProgsToEdict)			(pf, ed)
 #define EDICT_TO_PROG(pf, ed)								(*pf->EdictToProgs)			(pf, (struct edict_s*)ed)

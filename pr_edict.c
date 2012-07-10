@@ -38,7 +38,7 @@ edictrun_t *ED_AllocIntoTable (progfuncs_t *progfuncs, int num)
 
 	prinst->edicttable[num] = *(struct edict_s **)&e = (void*)memalloc(externs->edictsize);
 	memset(e, 0, externs->edictsize);
-	e->fields = PRAddressableExtend(progfuncs, fields_size);
+	e->fields = PRAddressableAlloc(progfuncs, fields_size);
 	e->entnum = num;
 	QC_ClearEdict(progfuncs, (struct edict_s*)e);
 
@@ -996,10 +996,7 @@ char *ED_NewString (progfuncs_t *progfuncs, char *string, int minlength)
 
 	l = strlen(string) + 1;
 
-	newc = progfuncs->AddressableAlloc (progfuncs, l<minlength?minlength:l);
-	if (!newc)
-		return progfuncs->stringtable;
-
+	newc = PRAddressableAlloc (progfuncs, l<minlength?minlength:l);
 	new_p = newc;
 
 	for (i=0 ; i< l ; i++)
@@ -1652,8 +1649,6 @@ int LoadEnts(progfuncs_t *progfuncs, char *file, float killonspawnflags)
 	ddef16_t *d16;
 	ddef32_t *d32;
 	func_t CheckSpawn=0;
-	void *oldglobals = NULL;
-	int oldglobalssize = 0;
 
 	extern edictrun_t tempedict;
 
@@ -1802,14 +1797,6 @@ int LoadEnts(progfuncs_t *progfuncs, char *file, float killonspawnflags)
 				current_progstate->builtins = externs->builtinsfor(num, header_crc);
 				current_progstate->numbuiltins = numbuiltins;
 			}
-
-			if (num == 0 && oldglobals)
-			{
-				if (pr_progstate[0].globals_size == oldglobalssize)
-					memcpy(pr_progstate[0].globals, oldglobals, pr_progstate[0].globals_size);
-				free(oldglobals);
-				oldglobals = NULL;
-			}
 		}
 		else if (!strcmp(qcc_token, "globals"))
 		{
@@ -1917,21 +1904,6 @@ int LoadEnts(progfuncs_t *progfuncs, char *file, float killonspawnflags)
 					break;
 				else
 					Sys_Error("Bad key \"%s\" in general block", qcc_token);
-			}
-
-			if (oldglobals)
-				free(oldglobals);
-			oldglobals = NULL;
-			if (pr_progstate[0].globals_size)
-			{
-				oldglobals = malloc(pr_progstate[0].globals_size);
-				if (oldglobals)
-				{
-					oldglobalssize = pr_progstate[0].globals_size;
-					memcpy(oldglobals, pr_progstate[0].globals, oldglobalssize);
-				}
-				else
-					printf("Unable to alloc %i bytes\n", pr_progstate[0].globals_size);
 			}
 
 			PRAddressableFlush(progfuncs, -1);
@@ -2134,10 +2106,6 @@ int LoadEnts(progfuncs_t *progfuncs, char *file, float killonspawnflags)
 
 		sv_num_edicts = numents;
 	}
-
-	if (oldglobals)
-		free(oldglobals);
-	oldglobals = NULL;
 
 	if (resethunk)
 	{
@@ -2480,7 +2448,6 @@ retry:
 	current_progstate->statements = (void *)((qbyte *)pr_progs + pr_progs->ofs_statements);
 
 	glob = pr_globals = (void *)((qbyte *)pr_progs + pr_progs->ofs_globals);
-	current_progstate->globals_size = pr_progs->numglobals*sizeof(*pr_globals);
 
 	pr_linenums=NULL;
 	pr_types=NULL;
@@ -2589,12 +2556,12 @@ retry:
 	}
 
 	len=sizeof(char)*pr_progs->numstrings;
-	s = PRAddressableExtend(progfuncs, len);
+	s = PRAddressableAlloc(progfuncs, len);
 	memcpy(s, pr_strings, len);
 	pr_strings = (char *)s;
 
 	len=sizeof(float)*pr_progs->numglobals;
-	s = PRAddressableExtend(progfuncs, len);
+	s = PRAddressableAlloc(progfuncs, len);
 	memcpy(s, pr_globals, len);
 	glob = pr_globals = (float *)s;
 
