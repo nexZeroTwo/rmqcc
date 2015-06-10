@@ -9233,9 +9233,6 @@ void QCC_PR_ParseDefs (char *classname)
 		if (!QCC_PR_CheckToken (";"))
 			QCC_PR_ParseWarning(WARN_UNDESIRABLECONVENTION, "Missing semicolon at end of definition");
 	}
-
-    if(type->type == ev_variant && !def->initialized)
-        QCC_PR_ParseError(ERR_VARIANTNOTINITIALIZED, "variant '%s' not initialized", def->name);
 }
 
 /*
