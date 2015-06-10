@@ -4184,6 +4184,7 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 	QCC_dstatement_t *st;
 
 	char membername[2048];
+    pbool explicitdecl = false;
 
 // if the token is an immediate, allocate a constant for it
 	if (pr_token_type == tt_immediate)
@@ -4207,7 +4208,18 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 		return d;
 	}
 
+    t = QCC_PR_ParseType(false, true);
+    if(t)
+        explicitdecl = true;
+    else
+        t = type_variant;
+
 	name = QCC_PR_ParseName ();
+
+    if(!explicitdecl && !STRCMP(name, "var")) {
+        name = QCC_PR_ParseName();
+        explicitdecl = true;
+    }
 
 	if (assumeclass && assumeclass->parentclass)	// 'testvar' becomes 'self::testvar'
 	{	//try getting a member.
@@ -4259,13 +4271,14 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 		}
 		else
 		{
-			d = QCC_PR_GetDef (type_variant, name, pr_scope, true, 1, false);
+			d = QCC_PR_GetDef (t, name, pr_scope, true, 1, false);
 			if(!d)
 				QCC_PR_ParseError (ERR_UNKNOWNVALUE, "Unknown value \"%s\"", name);
-			else
-				QCC_PR_ParseWarning (ERR_UNKNOWNVALUE, "Unknown value \"%s\".", name);
+			else if(!explicitdecl)
+				QCC_PR_ParseWarning (WARN_IMPLICITDECLARATION, "Implicit declaration of \"%s\".", name);
 		}
-	}
+	} if(explicitdecl && t != type_variant && typecmp(d->type, t))
+        QCC_PR_ParseError(ERR_TYPEMISMATCHREDEC, "Type mismatch on redeclaration of %s. %s, should be %s", name, TypeName(t), TypeName(d->type));
 
 	t = d->type;
 	idx = NULL;
@@ -5102,6 +5115,10 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 			}
 
 		// type check
+
+            if(e->type == type_variant)
+                e->type = e2->type;
+
 			type_a = e->type->type;
 			type_b = e2->type->type;
 
