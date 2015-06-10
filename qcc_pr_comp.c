@@ -1078,6 +1078,8 @@ pbool QCC_OPCodeValid(QCC_opcode_t *op)
 
 #define EXPR_WARN_ABOVE_1 2
 #define EXPR_DISALLOW_COMMA 4
+#define EXPR_NO_EXPECT_PUNCTATION 8
+
 QCC_def_t *QCC_PR_Expression (int priority, int exprflags);
 int QCC_AStatementJumpsTo(int targ, int first, int last);
 pbool QCC_StatementIsAJump(int stnum, int notifdest);
@@ -4269,6 +4271,34 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 			od = QCC_PR_GetDef(NULL, "self", NULL, true, 1, false);
 			d = QCC_PR_DummyDef(pr_classtype, "super", pr_scope, 1, od->ofs, true, false);
 		}
+        else if(keyword_if && !strcmp(name, "if")) {
+            QCC_dstatement32_t *fromj, *elsej;
+            QCC_def_t *e, *e2;
+
+            QCC_PR_Expect("(");
+            e = QCC_PR_Expression(TOP_PRIORITY, 0);
+            QCC_PR_Expect(")");
+
+            QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_IFNOT_I], e, NULL, &fromj));
+            e = QCC_PR_Expression(TOP_PRIORITY, EXPR_NO_EXPECT_PUNCTATION | EXPR_DISALLOW_COMMA);
+            e2 = QCC_GetTemp(e->type);
+            QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[(e2->type->size>=3)?OP_STORE_V:OP_STORE_F], e, e2, NULL));
+            QCC_UnFreeTemp(e2);
+
+            QCC_PR_Expect("else");
+            QCC_PR_Statement(&pr_opcodes[OP_GOTO], NULL, NULL, &elsej);
+            fromj->b = &statements[numstatements] - fromj;
+            e = QCC_PR_Expression(TOP_PRIORITY, EXPR_NO_EXPECT_PUNCTATION | EXPR_DISALLOW_COMMA);
+
+            if (typecmp(e->type, e2->type) != 0)
+                QCC_PR_ParseError(0, "if operator with mismatching types\n");
+
+            QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[(e2->type->size>=3)?OP_STORE_V:OP_STORE_F], e, e2, NULL));
+            QCC_UnFreeTemp(e2);
+
+            elsej->a = &statements[numstatements] - elsej;
+            d = e2;
+        }
 		else
 		{
 			d = QCC_PR_GetDef (t, name, pr_scope, true, 1, false);
@@ -5030,7 +5060,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 				}
 		}
 
-		if (pr_token_type != tt_punct)
+		if (pr_token_type != tt_punct && !(exprflags & EXPR_NO_EXPECT_PUNCTATION))
 		{
 			QCC_PR_ParseWarning(WARN_UNEXPECTEDPUNCT, "Expected punctuation");
 		}
