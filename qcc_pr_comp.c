@@ -8265,9 +8265,10 @@ void QCC_PR_ExpandUnionToFields(QCC_type_t *type, int *fields)
 }
 
 
-void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t *type, int offset)
+void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t **p_type, int offset)
 {
 	QCC_def_t *tmp;
+    QCC_type_t *type = *p_type;
 	int i;
 
 	if (arraysize > 1)
@@ -8276,7 +8277,7 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t *type
 		QCC_PR_Expect("{");
 		for (i = 0; i < arraysize; i++)
 		{
-			QCC_PR_ParseInitializerType(1, def, type, offset + i*type->size);
+			QCC_PR_ParseInitializerType(1, def, &type, offset + i*type->size);
 			if (!QCC_PR_CheckToken(","))
 				break;
 		}
@@ -8386,6 +8387,12 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t *type
 		else
 		{
 			tmp = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
+
+            if(type == type_variant) {
+                *p_type = tmp->type;
+                type = *p_type;
+            }
+
 			if (typecmp(type, tmp->type))
 			{
 				/*you can cast from const 0 to anything*/
@@ -8455,7 +8462,7 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t *type
 void QCC_PR_ParseInitializerDef(QCC_def_t *def, pbool isvar, pbool isconst)
 {
 	def->constant = (isconst || (!isvar && !pr_scope));
-	QCC_PR_ParseInitializerType(def->arraysize, def, def->type, def->ofs);
+	QCC_PR_ParseInitializerType(def->arraysize, def, &def->type, def->ofs);
 	if (!def->initialized)
 		def->initialized = 1;
 }
@@ -8877,10 +8884,10 @@ void QCC_PR_ParseDefs (char *classname)
 			break;
 	}
 
-	type = QCC_PR_ParseType (false, false);
+	type = QCC_PR_ParseType (false, true);
 
-	if (type == NULL)	//ignore
-		return;
+	if (type == NULL) // infer it later
+        type = type_variant;
 
 	inlinefunction = type_inlinefunction;
 
@@ -9209,6 +9216,9 @@ void QCC_PR_ParseDefs (char *classname)
 		if (!QCC_PR_CheckToken (";"))
 			QCC_PR_ParseWarning(WARN_UNDESIRABLECONVENTION, "Missing semicolon at end of definition");
 	}
+
+    if(type->type == ev_variant && !def->initialized)
+        QCC_PR_ParseError(ERR_VARIANTNOTINITIALIZED, "variant '%s' not initialized", def->name);
 }
 
 /*
