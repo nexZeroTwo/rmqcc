@@ -42,6 +42,7 @@ pbool keyword_switch;
 pbool keyword_thinktime;
 pbool keyword_var;	//allow it to be initialised and set around the place.
 pbool keyword_vector;	//for skipping the local
+pbool keyword_inline;
 
 
 pbool keyword_enum;	//kinda like in c, but typedef not supported.
@@ -4174,6 +4175,7 @@ PR_ParseValue
 Returns the global ofs for the current token
 ============
 */
+
 QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 {
 	QCC_def_t		*d, *od, *tmp, *idx;
@@ -4204,6 +4206,7 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 		QCC_PR_Expect("]");
 		return d;
 	}
+
 	name = QCC_PR_ParseName ();
 
 	if (assumeclass && assumeclass->parentclass)	// 'testvar' becomes 'self::testvar'
@@ -4257,12 +4260,10 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 		else
 		{
 			d = QCC_PR_GetDef (type_variant, name, pr_scope, true, 1, false);
-			if (!d)
+			if(!d)
 				QCC_PR_ParseError (ERR_UNKNOWNVALUE, "Unknown value \"%s\"", name);
 			else
-			{
 				QCC_PR_ParseWarning (ERR_UNKNOWNVALUE, "Unknown value \"%s\".", name);
-			}
 		}
 	}
 
@@ -7167,7 +7168,6 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 
 	expandedemptymacro = false;
 
-
 	f = (void *)qccHunkAlloc (sizeof(QCC_function_t));
 
 //
@@ -8878,6 +8878,7 @@ void QCC_PR_ParseDefs (char *classname)
 	}
 
 	type = QCC_PR_ParseType (false, false);
+
 	if (type == NULL)	//ignore
 		return;
 
@@ -9241,8 +9242,10 @@ pbool	QCC_PR_CompileFile (char *string, char *filename)
 	}
 	pr_file_p = string;
 
+    pr_in_anon_func = false;
 	pr_source_line = 0;
 
+    memset(pr_anonfunc_buf, 0, sizeof(pr_anonfunc_buf));
 	memcpy(&oldjb, &pr_parse_abort, sizeof(oldjb));
 
 	if( setjmp( pr_parse_abort ) ) {
@@ -9278,6 +9281,22 @@ pbool	QCC_PR_CompileFile (char *string, char *filename)
 
 		QCC_PR_ParseDefs (NULL);
 	}
+
+    if(*pr_anonfunc_buf) {
+        printf("compiling inline function definitions for %s...\n", filename);
+
+        pr_source_line = 0;
+        s_file = s_file2 = compilingfile = QCC_CopyString("<anonfuncs>");
+
+        pr_file_p = pr_anonfunc_buf;
+        QCC_PR_Lex();
+
+        while(pr_token_type != tt_eof) {
+            pr_scope = NULL;
+            QCC_PR_ParseDefs(NULL);
+        }
+    }
+
 	memcpy(&pr_parse_abort, &oldjb, sizeof(oldjb));
 
 	return (pr_error_count == 0);

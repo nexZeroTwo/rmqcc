@@ -35,11 +35,11 @@ char	pr_immediate_string[8192];
 int		pr_error_count;
 int		pr_warning_count;
 
+int pr_in_anon_func;
 
 CompilerConstant_t *CompilerConstant;
 int numCompilerConstants;
 extern pbool expandedemptymacro;
-
 
 
 char	*pr_punctuation[] =
@@ -2443,6 +2443,118 @@ int QCC_PR_CheakCompConst(void)
 		pr_file_p = oldpr_file_p+8;
 		return true;
 	}
+
+    if(keyword_inline && !pr_in_anon_func && !strncmp(pr_file_p, "inline", 6)) {
+        char fret[256];
+        char fargs[256];
+        char fname[256];
+        char fbody[4096];
+        char fbuf[4096];
+        int plevel = 1;
+        token_type_t prev_ttype;
+        QCC_type_t *ftype;
+        QCC_def_t *tdef;
+
+        pr_in_anon_func = true;
+        pr_file_p = oldpr_file_p+6;
+        QCC_PR_LexWhitespace();
+
+        memset(fret, 0, sizeof(fret));
+        memset(fargs, 0, sizeof(fargs));
+        memset(fname, 0, sizeof(fname));
+        memset(fbody, 0, sizeof(fbody));
+        memset(fbuf, 0, sizeof(fbuf));
+
+        for(;;) {
+            QCC_PR_Lex();
+
+            if(pr_token[0] == '(')
+                break;
+
+            if(*fret && pr_token_type == tt_name) {
+                strcpy(fname, pr_token);
+                QCC_PR_Lex();
+                break;
+            }
+
+            strcat(fret, pr_token);
+        }
+
+        QCC_PR_Expect("(");
+
+        for(;;) {
+            *fargs = '(';
+            prev_ttype = tt_punct;
+
+            while(plevel) {
+                if(pr_token_type == tt_name && prev_ttype == tt_name)
+                    strcat(fargs, " ");
+                strcat(fargs, pr_token);
+
+                QCC_PR_Lex();
+                prev_ttype = pr_token_type;
+
+                if(*pr_token == '(')
+                    ++plevel;
+                else if(*pr_token == ')')
+                    --plevel;
+            }
+
+            strcat(fargs, ")");
+            oldpr_file_p = pr_file_p;
+            QCC_PR_Lex();
+
+            if(*pr_token == '(') {
+                strcat(fret, fargs);
+                memset(fargs, 0, sizeof(fargs));
+                ++plevel;
+                QCC_PR_Lex();
+                continue;
+            }
+
+            break;
+        }
+
+        if(*pr_token != '{')
+            QCC_PR_ParseError(ERR_EXPECTED, "expected {, found %s", pr_token);
+
+        plevel = 1;
+
+        while(plevel) {
+            QCC_PR_Lex();
+
+            if(pr_token_type == tt_punct) {
+                if(*pr_token == '{')
+                    ++plevel;
+                else if(*pr_token == '}')
+                    --plevel;
+            }
+        }
+
+        strncat(fbody, oldpr_file_p, (size_t)(pr_file_p - oldpr_file_p));
+
+        if(!*fname)
+            sprintf(fname, "%s__afunc%i", pr_scope->name, pr_scope->anonfuncs++);
+
+        sprintf(fbuf, "%s %s%s %s\n", fret, fname, fargs, fbody);
+        strcat(pr_anonfunc_buf, fbuf);
+
+        oldpr_file_p = pr_file_p;
+
+        strcat(fret, fargs);
+        pr_file_p = fret;
+        QCC_PR_Lex();
+        ftype = QCC_PR_ParseType(false, false);
+        tdef = QCC_PR_GetDef(ftype, fname, NULL, true, 1, false);
+
+        pr_file_p = fname;
+        QCC_PR_Lex();
+        pr_file_p = oldpr_file_p;
+
+        pr_in_anon_func = false;
+        return true;
+    }
+
 	return false;
 }
 

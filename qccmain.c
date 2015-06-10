@@ -93,6 +93,8 @@ PATHSTRING		*precache_files;
 int			*precache_files_block;
 int			numfiles;
 
+char pr_anonfunc_buf[ANONFUNC_BUF_LIMIT];
+
 extern int numCompilerConstants;
 hashtable_t compconstantstable;
 hashtable_t globalstable;
@@ -227,6 +229,7 @@ compiler_flag_t compiler_flag[] = {
 	{&keyword_union,		defaultkeyword, "union",		"Keyword: union",		"Disables the 'union' keyword."},	//you surly know what a union is!
 	{&keyword_var,			defaultkeyword, "var",			"Keyword: var",			"Disables the 'var' keyword."},
 	{&keyword_vector,		defaultkeyword, "vector",		"Keyword: vector",		"Disables the 'vector' keyword."},
+    {&keyword_inline,       defaultkeyword, "inline",       "Keyword: inline",      "Disables the 'inline' keyword."},
 
 
 	//options

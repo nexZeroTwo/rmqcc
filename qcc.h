@@ -348,6 +348,8 @@ typedef struct QCC_def_s
 	pbool subscoped_away;
 
 	temp_t *temp;
+
+    int anonfuncs;
 } QCC_def_t;
 
 //============================================================================
@@ -468,6 +470,7 @@ extern pbool keyword_shared;	//mark global to be copied over when progs changes 
 extern pbool keyword_noref;	//nowhere else references this, don't strip it.
 extern pbool keyword_nosave;	//don't write the def to the output.
 extern pbool keyword_union;	//you surly know what a union is!
+extern pbool keyword_inline; //no this is not like in C, used for "anonymous" functions
 
 
 extern pbool keywords_coexist;
@@ -871,6 +874,10 @@ extern int			nummodels;
 extern PATHSTRING		*precache_files;
 extern int			*precache_files_block;
 extern int			numfiles;
+
+#define ANONFUNC_BUF_LIMIT 16384
+extern char pr_anonfunc_buf[ANONFUNC_BUF_LIMIT];
+extern int pr_in_anon_func;
 
 typedef struct qcc_includechunk_s {
 	struct qcc_includechunk_s *prev;
