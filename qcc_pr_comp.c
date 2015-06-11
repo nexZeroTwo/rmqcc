@@ -8539,6 +8539,7 @@ void QCC_PR_ParseDefs (char *classname)
 	pbool nosave = false;
 	pbool allocatenew = true;
 	pbool inlinefunction = false;
+    pbool isimplicit = false;
 	gofs_t oldglobals;
 	int arraysize;
 
@@ -8933,8 +8934,12 @@ void QCC_PR_ParseDefs (char *classname)
 
 	type = QCC_PR_ParseType (false, true);
 
-	if (type == NULL) // infer it later
+	if(type == NULL) {
         type = type_variant;
+
+        if(!isvar)
+            isimplicit = true;
+    }
 
 	inlinefunction = type_inlinefunction;
 
@@ -9255,6 +9260,9 @@ void QCC_PR_ParseDefs (char *classname)
 			d->initialized = def->initialized;
 		}
 	} while (QCC_PR_CheckToken (","));
+
+    if(isimplicit)
+        QCC_PR_ParseWarning(WARN_IMPLICITDECLARATION, "Implicit declaration");
 
 	if (type->type == ev_function)
 		QCC_PR_CheckToken (";");
