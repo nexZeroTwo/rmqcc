@@ -5024,6 +5024,8 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 			}
 			if (QCC_PR_CheckToken ("?"))
 			{
+                QCC_PR_ParseWarning(WARN_DEPRECATEDTERNARY, "the 'cond? expr1 : expr2' ternary operator syntax is deprecated, consider using 'if(cond) expr1 else expr2'");
+
 				QCC_dstatement32_t *fromj, *elsej;
 				QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_IFNOT_I], e, NULL, &fromj));
 				e = QCC_PR_Expression(TOP_PRIORITY, 0);
@@ -5038,7 +5040,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 				e = QCC_PR_Expression(TOP_PRIORITY, 0);
 
 				if (typecmp(e->type, e2->type) != 0)
-					QCC_PR_ParseError(0, "Ternary operator with mismatching types\n");
+					QCC_PR_ParseError(0, "Ternary operator with mismatching types");
 				QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[(e2->type->size>=3)?OP_STORE_V:OP_STORE_F], e, e2, NULL));
 				QCC_UnFreeTemp(e2);
 
