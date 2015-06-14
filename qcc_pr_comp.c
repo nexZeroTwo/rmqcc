@@ -154,6 +154,7 @@ QCC_def_t		*pr_scope;		// the function being parsed, or NULL
 QCC_type_t		*pr_classtype;
 pbool	pr_dumpasm;
 QCC_string_t	s_file, s_file2;			// filename for function definition
+QCC_def_t       *pr_inent;
 
 unsigned int			locals_start;		// for tracking local variables vs temps
 unsigned int			locals_end;		// for tracking local variables vs temps
@@ -1079,6 +1080,7 @@ pbool QCC_OPCodeValid(QCC_opcode_t *op)
 #define EXPR_WARN_ABOVE_1 2
 #define EXPR_DISALLOW_COMMA 4
 #define EXPR_NO_EXPECT_PUNCTATION 8
+#define EXPR_DISALLOW_ASSIGN 16
 
 QCC_def_t *QCC_PR_Expression (int priority, int exprflags);
 int QCC_AStatementJumpsTo(int targ, int first, int last);
@@ -4257,6 +4259,9 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 			d = QCC_PR_GetDef (type_function, name, NULL, true, 1, false);
 			d->initialized = 0;
 		}
+        else if(pr_inent && !strcmp(name, "this")) {
+            d = pr_inent;
+        }
 		else if (keyword_class && !strcmp(name, "this"))
 		{
 			if (!pr_classtype)
@@ -5073,6 +5078,10 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 		{
 //			if (op->priority != priority)
 //				continue;
+
+            if(*pr_token == '=' && (exprflags & EXPR_DISALLOW_ASSIGN))
+                continue;
+
 			if (!QCC_PR_CheckToken (op->name))
 				continue;
 			st = NULL;
@@ -5432,6 +5441,45 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 	}
 	if (e == NULL)
 		QCC_PR_ParseError(ERR_INTERNAL, "e == null");
+
+    if(e->type->type == ev_entity && QCC_PR_CheckToken("{")) {
+        do {
+            QCC_def_t *eField, *eValue;
+
+            pr_inent = e;
+            eField = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA | EXPR_DISALLOW_ASSIGN);
+
+            if(eField->type->type != ev_field)
+                QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected a field, got %s", TypeName(eField->type));
+
+            QCC_PR_Expect("=");
+
+            pr_inent = e;
+            eValue = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA | EXPR_DISALLOW_ASSIGN);
+
+            if(typecmp(eValue->type, eField->type->aux_type))
+                QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected %s, got %s", TypeName(eField->type->aux_type), TypeName(eValue->type));
+
+            eField = QCC_PR_Statement(&pr_opcodes[OP_ADDRESS], e, eField, NULL);
+
+            for(op = pr_opcodes; op; ++op) {
+                QCC_type_t *ta = *(op->type_a);
+                QCC_type_t *tb = *(op->type_b);
+
+                if(*op->name == '=' && ta->type == ev_pointer && tb->type == eValue->type->type) {
+                    QCC_PR_Statement(op, eValue, eField, NULL);
+                    break;
+                }
+            }
+
+            if(!op)
+                QCC_PR_ParseError(ERR_TYPEMISMATCH, "no suitable opcode for %s = %s", eField->type->name, eValue->type->name);
+
+        } while(QCC_PR_CheckToken(","));
+
+        QCC_PR_Expect("}");
+        pr_inent = NULL;
+    }
 
 	if (!(exprflags&EXPR_DISALLOW_COMMA) && priority == TOP_PRIORITY && QCC_PR_CheckToken (","))
 	{
@@ -9308,6 +9356,7 @@ pbool	QCC_PR_CompileFile (char *string, char *filename)
 
     pr_in_anon_func = false;
 	pr_source_line = 0;
+    pr_inent = NULL;
 
     memset(pr_anonfunc_buf, 0, sizeof(pr_anonfunc_buf));
 	memcpy(&oldjb, &pr_parse_abort, sizeof(oldjb));
