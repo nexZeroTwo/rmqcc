@@ -4415,11 +4415,16 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
                 s->b = &statements[cases[i]] - s;
             }
 
+            free(cases);
+            free(eCaseKeys);
+
             QCC_PR_Statement(&pr_opcodes[OP_GOTO], 0, 0, &s);
             s->a = &statements[defcase] - s;
 
             for(i = 0; i < num_cases; ++i) if(sCaseJumps[i])
                 sCaseJumps[i]->a = &statements[numstatements] - sCaseJumps[i];
+
+            free(sCaseJumps);
 
             QCC_PR_Expect("}");
         }
