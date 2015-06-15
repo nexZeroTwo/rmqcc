@@ -4304,6 +4304,120 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
             elsej->a = &statements[numstatements] - elsej;
             d = e2;
         }
+        else if(keyword_switch && keyword_case && !strcmp(name, "switch")) {
+            QCC_def_t *e, *e2, *eCond, *eCondTemp, *eDefault, **eCaseKeys;
+            QCC_dstatement32_t *s, *sStartJump, **sCaseJumps;
+            QCC_type_t *tKey, *tVal = NULL;
+            size_t max_cases = 8, num_cases = 0, i;
+            int opEQ, *cases, defcase = -1;
+            pbool isdefault;
+
+            cases = malloc(max_cases * sizeof(cases));
+            eCaseKeys = malloc(max_cases * sizeof(*eCaseKeys));
+            sCaseJumps = malloc(max_cases * sizeof(*sCaseJumps));
+
+            QCC_PR_Expect("(");
+            eCond = QCC_PR_Expression(TOP_PRIORITY, 0);
+            QCC_PR_Expect(")");
+            tKey = eCond->type;
+
+            eCondTemp = QCC_GetTemp(tKey);
+            QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[(tKey->size>=3)?OP_STORE_V:OP_STORE_F], eCond, eCondTemp, NULL));
+            QCC_UnFreeTemp(eCondTemp);
+
+            switch(tKey->type) {
+                case ev_integer:        opEQ = OP_EQ_I;   break;
+                case ev_float:          opEQ = OP_EQ_F;   break;
+                case ev_function:       opEQ = OP_EQ_FNC; break;
+                case ev_string:         opEQ = OP_EQ_S;   break;
+                case ev_vector:         opEQ = OP_EQ_V;   break;
+                case ev_entity:         opEQ = OP_EQ_E;   break;
+                case ev_field:          opEQ = OP_EQ_FI;  break;
+
+                default:
+                    QCC_PR_ParseError(ERR_BADSWITCHTYPE, "bad switch type");
+                    break;
+            }
+ 
+            QCC_PR_Statement(&pr_opcodes[OP_GOTO], 0, 0, &sStartJump);
+
+            QCC_PR_Expect("{");
+
+            do {
+                if(num_cases == max_cases) {
+                    max_cases += 8;
+                    cases = realloc(cases, max_cases * sizeof(cases));
+                    eCaseKeys = realloc(eCaseKeys, max_cases * sizeof(*eCaseKeys));
+                    sCaseJumps = realloc(sCaseJumps, max_cases * sizeof(*sCaseJumps));
+                }
+
+                cases[num_cases] = numstatements;
+                isdefault = QCC_PR_CheckKeyword(keyword_default, "default");
+
+                if(isdefault) {
+                    if(defcase >= 0)
+                        QCC_PR_ParseError(ERR_MULTIPLEDEFAULTS, "duplicated default case");
+
+                    defcase = numstatements;
+                } else {
+                    QCC_PR_Expect("case");
+                    e = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
+
+                    if(numstatements != cases[num_cases])
+                        QCC_PR_ParseError(ERR_CASENOTIMMEDIATE, "non-constant case");
+
+                    if(typecmp(tKey, e->type))
+                        QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected %s, got %s", TypeName(tKey), TypeName(e->type));
+                    
+                    eCaseKeys[num_cases] = e;
+                }
+
+                QCC_PR_Expect(":");
+
+                e = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
+
+                if(tVal) {
+                    if(typecmp(tVal, e->type))
+                        QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected %s, got %s", TypeName(tVal), TypeName(e->type));
+                } else {
+                    tVal = e->type;
+                    d = QCC_GetTemp(tVal);
+                }
+
+                QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[(tVal->size>=3)?OP_STORE_V:OP_STORE_F], e, d, NULL));
+                QCC_UnFreeTemp(d);
+
+                QCC_PR_Statement(&pr_opcodes[OP_GOTO], 0, 0, &sCaseJumps[num_cases]);
+
+                ++num_cases;
+            } while(QCC_PR_CheckToken(","));
+
+            if(defcase < 0)
+                QCC_PR_ParseError(ERR_DEFAULTCASEREQUIRED, "switch expressions require a default case");
+
+            sStartJump->a = &statements[numstatements] - sStartJump;
+            e2 = QCC_GetTemp(tKey);
+
+            for(i = 0; i < num_cases; ++i) {
+                if(cases[i] == defcase)
+                    continue;
+
+                e = QCC_PR_Statement(&pr_opcodes[opEQ], eCondTemp, eCaseKeys[i], &s);
+                s->c = e2->ofs;
+
+                QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_IF_I], e2, 0, &s));
+                QCC_UnFreeTemp(e2);
+                s->b = &statements[cases[i]] - s;
+            }
+
+            QCC_PR_Statement(&pr_opcodes[OP_GOTO], 0, 0, &s);
+            s->a = &statements[defcase] - s;
+
+            for(i = 0; i < num_cases; ++i)
+                sCaseJumps[i]->a = &statements[numstatements] - sCaseJumps[i];
+
+            QCC_PR_Expect("}");
+        }
 		else
 		{
 			d = QCC_PR_GetDef (t, name, pr_scope, true, 1, false);
