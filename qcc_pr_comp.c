@@ -4310,7 +4310,7 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
             QCC_type_t *tKey, *tVal = NULL;
             size_t max_cases = 8, num_cases = 0, i;
             int opEQ, *cases, defcase = -1;
-            pbool isdefault;
+            pbool isdefault, fallthrough;
 
             cases = malloc(max_cases * sizeof(cases));
             eCaseKeys = malloc(max_cases * sizeof(*eCaseKeys));
@@ -4374,23 +4374,28 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 
                 QCC_PR_Expect(":");
 
-                e = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
+                fallthrough = !strcmp(pr_token, "case");
+                sCaseJumps[num_cases] = NULL;
 
-                if(tVal) {
-                    if(typecmp(tVal, e->type))
-                        QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected %s, got %s", TypeName(tVal), TypeName(e->type));
-                } else {
-                    tVal = e->type;
-                    d = QCC_GetTemp(tVal);
+                if(!fallthrough) {
+                    e = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
+
+                    if(tVal) {
+                        if(typecmp(tVal, e->type))
+                            QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected %s, got %s", TypeName(tVal), TypeName(e->type));
+                    } else {
+                        tVal = e->type;
+                        d = QCC_GetTemp(tVal);
+                    }
+
+                    QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[(tVal->size>=3)?OP_STORE_V:OP_STORE_F], e, d, NULL));
+                    QCC_UnFreeTemp(d);
+
+                    QCC_PR_Statement(&pr_opcodes[OP_GOTO], 0, 0, &sCaseJumps[num_cases]);
                 }
 
-                QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[(tVal->size>=3)?OP_STORE_V:OP_STORE_F], e, d, NULL));
-                QCC_UnFreeTemp(d);
-
-                QCC_PR_Statement(&pr_opcodes[OP_GOTO], 0, 0, &sCaseJumps[num_cases]);
-
                 ++num_cases;
-            } while(QCC_PR_CheckToken(","));
+            } while(fallthrough || QCC_PR_CheckToken(","));
 
             if(defcase < 0)
                 QCC_PR_ParseError(ERR_DEFAULTCASEREQUIRED, "switch expressions require a default case");
@@ -4413,7 +4418,7 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
             QCC_PR_Statement(&pr_opcodes[OP_GOTO], 0, 0, &s);
             s->a = &statements[defcase] - s;
 
-            for(i = 0; i < num_cases; ++i)
+            for(i = 0; i < num_cases; ++i) if(sCaseJumps[i])
                 sCaseJumps[i]->a = &statements[numstatements] - sCaseJumps[i];
 
             QCC_PR_Expect("}");
