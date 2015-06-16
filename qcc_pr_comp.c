@@ -157,6 +157,7 @@ pbool	pr_dumpasm;
 QCC_string_t	s_file, s_file2;			// filename for function definition
 QCC_def_t       *pr_inent;
 int pr_blockexplevel;
+int pr_tempvectors;
 
 unsigned int			locals_start;		// for tracking local variables vs temps
 unsigned int			locals_end;		// for tracking local variables vs temps
@@ -4177,14 +4178,17 @@ void QCC_PR_EmitClassFromFunction(QCC_def_t *scope, char *tname)
 }
 
 QCC_def_t *QCC_PR_ParseComplexVector() {
-    int elem = 0, i;
-    QCC_def_t *v[3] = { NULL }, *e, *temps[3];
+    int elem = 0, i, id = 0;
+    char buf[1024];
+    QCC_def_t *v[3] = { NULL }, *e, *r;
     pbool isimmediate = true;
 
-    for(i = 0; i < 3; ++i)
-        temps[i] = QCC_GetTemp(type_float);
+    sprintf(buf, "tempvector*%i", pr_tempvectors);
+    ++pr_tempvectors;
 
-    (*temps)->type = type_vector;
+    // I'm sorry, I'm too stupid to do this with actual temps.
+
+    r = QCC_PR_GetDef(type_vector, buf, NULL, true, 1, false);
 
     do {
         if(elem >= 3)
@@ -4199,15 +4203,15 @@ QCC_def_t *QCC_PR_ParseComplexVector() {
             isimmediate = false;
 
         QCC_FreeTemp(e);
-        QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_STORE_F], e, temps[elem], NULL));
+        QCC_PR_SimpleStatement(OP_STORE_F, e->ofs, r->ofs + elem, 0, false);
 
         v[elem++] = e;
     } while(QCC_PR_CheckToken(","));
 
+    --pr_tempvectors;
+
     if(isimmediate) {
         pr_immediate_type = type_vector;
-        for(i = 0; i < 3; ++i)
-            QCC_FreeTemp(temps[i]);
 
         // retract our previous STORE_F statements.
         numstatements -= elem;
@@ -4225,8 +4229,7 @@ QCC_def_t *QCC_PR_ParseComplexVector() {
     }
 
     QCC_PR_Expect("]");
-
-    return *temps;
+    return r;
 }
 
 /*
@@ -9597,6 +9600,7 @@ pbool	QCC_PR_CompileFile (char *string, char *filename)
 	pr_source_line = 0;
     pr_inent = NULL;
     pr_blockexplevel = 0;
+    pr_tempvectors = 0;
     qcc_uselessstatements = NULL;
 
     memset(pr_anonfunc_buf, 0, sizeof(pr_anonfunc_buf));
