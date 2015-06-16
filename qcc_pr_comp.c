@@ -4175,6 +4175,59 @@ void QCC_PR_EmitClassFromFunction(QCC_def_t *scope, char *tname)
 	locals_end = numpr_globals + basetype->size;
 	df->locals = locals_end - df->parm_start;
 }
+
+QCC_def_t *QCC_PR_ParseComplexVector() {
+    int elem = 0, i;
+    QCC_def_t *v[3] = { NULL }, *e, *temps[3], *t;
+    QCC_dstatement32_t *s;
+    pbool isimmediate = true;
+
+    for(i = 0; i < 3; ++i)
+        temps[i] = QCC_GetTemp(type_float);
+
+    (*temps)->type = type_vector;
+
+    do {
+        if(elem >= 3)
+            QCC_PR_ParseError(ERR_TOOMANYVECTORELEMENTS, "too many elements in vector (max 3)");
+
+        e = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
+
+        if(e->type->type != ev_float)
+            QCC_PR_ParseError(ERR_TYPEMISMATCH, "non-float element in vector (%s)", TypeName(e->type));
+
+        if(!e->constant)
+            isimmediate = false;
+
+        QCC_FreeTemp(e);
+        QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_STORE_F], e, temps[elem], NULL));
+
+        v[elem++] = e;
+
+    } while(QCC_PR_CheckToken(","));
+
+    QCC_PR_Expect("]");
+
+    if(isimmediate) {
+        pr_immediate_type = type_vector;
+        for(i = 0; i < 3; ++i)
+            QCC_FreeTemp(temps[i]);
+
+        // retract our previous STORE_F statements.
+        numstatements -= elem;
+
+        for(i = 0; i < elem; ++i)
+            pr_immediate.vector[i] = G_FLOAT(v[i]->ofs);
+
+        for(i = elem; i < 3; ++i)
+            pr_immediate.vector[i] = 0;
+
+        return QCC_PR_ParseImmediate();
+    }
+
+    return *temps;
+}
+
 /*
 ============
 PR_ParseValue
@@ -4187,8 +4240,9 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 {
 	QCC_def_t		*d, *od, *tmp, *idx;
 	QCC_type_t		*t;
-	char		*name;
+	char		*name, *pold = pr_file_p;
 	QCC_dstatement_t *st;
+    int lold = pr_source_line;
 
 	char membername[2048];
     pbool explicitdecl = false;
@@ -4199,13 +4253,24 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 
 	if (QCC_PR_CheckToken("["))	//reacc support
 	{	//looks like a funky vector. :)
+        int i;
 		vec3_t v;
-		pr_immediate_type = type_vector;
-		v[0] = pr_immediate._float;
-		QCC_PR_Lex();
-		v[1] = pr_immediate._float;
-		QCC_PR_Lex();
-		v[2] = pr_immediate._float;
+
+        for(i = 0; i < 3; ++i) {
+            if(i)
+                QCC_PR_Lex();
+
+            if(pr_token_type != tt_immediate) {
+                pr_file_p = pold;
+                pr_source_line = lold;
+                QCC_PR_Lex();
+                return QCC_PR_ParseComplexVector();
+            }
+
+            v[i] = pr_immediate._float;
+        }
+
+        pr_immediate_type = type_vector;
 		pr_immediate.vector[0] = v[0];
 		pr_immediate.vector[1] = v[1];
 		pr_immediate.vector[2] = v[2];
