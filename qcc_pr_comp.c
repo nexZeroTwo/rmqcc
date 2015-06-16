@@ -4178,8 +4178,7 @@ void QCC_PR_EmitClassFromFunction(QCC_def_t *scope, char *tname)
 
 QCC_def_t *QCC_PR_ParseComplexVector() {
     int elem = 0, i;
-    QCC_def_t *v[3] = { NULL }, *e, *temps[3], *t;
-    QCC_dstatement32_t *s;
+    QCC_def_t *v[3] = { NULL }, *e, *temps[3];
     pbool isimmediate = true;
 
     for(i = 0; i < 3; ++i)
@@ -4382,7 +4381,7 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
             d = e2;
         }
         else if(keyword_switch && keyword_case && !strcmp(name, "switch")) {
-            QCC_def_t *e, *e2, *eCond, *eCondTemp, *eDefault, **eCaseKeys;
+            QCC_def_t *e, *e2, *eCond, *eCondTemp, **eCaseKeys;
             QCC_dstatement32_t *s, *sStartJump, **sCaseJumps;
             QCC_type_t *tKey, *tVal = NULL;
             size_t max_cases = 8, num_cases = 0, i;
