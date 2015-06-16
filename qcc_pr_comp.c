@@ -4202,10 +4202,7 @@ QCC_def_t *QCC_PR_ParseComplexVector() {
         QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_STORE_F], e, temps[elem], NULL));
 
         v[elem++] = e;
-
     } while(QCC_PR_CheckToken(","));
-
-    QCC_PR_Expect("]");
 
     if(isimmediate) {
         pr_immediate_type = type_vector;
@@ -4221,8 +4218,13 @@ QCC_def_t *QCC_PR_ParseComplexVector() {
         for(i = elem; i < 3; ++i)
             pr_immediate.vector[i] = 0;
 
+        if(STRCMP(pr_token, "]"))
+            QCC_PR_ParseError(ERR_EXPECTED, "expected ], found %s", pr_token);
+
         return QCC_PR_ParseImmediate();
     }
+
+    QCC_PR_Expect("]");
 
     return *temps;
 }
