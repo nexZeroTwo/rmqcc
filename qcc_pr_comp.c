@@ -138,6 +138,7 @@ QCC_type_t *QCC_PR_FindType (QCC_type_t *type);
 QCC_type_t *QCC_PR_PointerType (QCC_type_t *pointsto);
 QCC_type_t *QCC_PR_FieldType (QCC_type_t *pointsto);
 
+QCC_def_t* QCC_PR_ParseStatement (pbool isblockexpr);
 void QCC_PR_ParseState (void);
 pbool simplestore;
 pbool expandedemptymacro;
@@ -155,6 +156,7 @@ QCC_type_t		*pr_classtype;
 pbool	pr_dumpasm;
 QCC_string_t	s_file, s_file2;			// filename for function definition
 QCC_def_t       *pr_inent;
+int pr_blockexplevel;
 
 unsigned int			locals_start;		// for tracking local variables vs temps
 unsigned int			locals_end;		// for tracking local variables vs temps
@@ -164,6 +166,7 @@ jmp_buf		pr_parse_abort;		// longjump with this on parse error
 void QCC_PR_ParseDefs (char *classname);
 
 pbool qcc_usefulstatement;
+int *qcc_uselessstatements;
 
 int max_breaks;
 int max_continues;
@@ -4212,6 +4215,15 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 		return d;
 	}
 
+    if(pr_token_type == tt_punct && !STRCMP(pr_token, "{")) {
+        d = QCC_PR_ParseStatement(true);
+
+        if(!d || d->type->type == ev_void)
+            QCC_PR_ParseError(ERR_VOIDBLOCKEXPRESSION, "block expression returns void");
+
+        return d;
+    }
+
     t = QCC_PR_ParseType(false, true);
     if(t)
         explicitdecl = true;
@@ -5681,21 +5693,50 @@ PR_ParseStatement
 
 ============
 */
-void QCC_PR_ParseStatement (void)
+QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 {
 	int continues;
 	int breaks;
 	int cases;
 	int i;
-	QCC_def_t				*e, *e2;
+	QCC_def_t				*e, *e2, *ret = NULL;
 	QCC_dstatement_t		*patch1, *patch2, *patch3;
 	int statementstart = pr_source_line;
 
 	if (QCC_PR_CheckToken ("{"))
 	{
+        int useless = 0, *olduseless;
+        pbool lastuseless;
 		e = pr.localvars;
-		while (!QCC_PR_CheckToken("}"))
-			QCC_PR_ParseStatement ();
+
+        if(isblockexpr)
+            ++pr_blockexplevel;
+
+        olduseless = qcc_uselessstatements;
+        qcc_uselessstatements = &useless;
+
+		while (!QCC_PR_CheckToken("}")) {
+			ret = QCC_PR_ParseStatement(false);
+            lastuseless = !qcc_usefulstatement;
+        }
+
+        qcc_uselessstatements = olduseless;
+
+        if(isblockexpr) {
+            if(lastuseless)
+                --useless;
+
+            if(useless) {
+                // FIXME: this won't tell us where they are
+                int osl = pr_source_line;
+                pr_source_line = statementstart;
+                QCC_PR_ParseWarning(WARN_POINTLESSSTATEMENT, "block expression contains %i effectless statement%s", useless, (useless > 1)? "s" : "");
+                pr_source_line = osl;
+            }
+
+            --pr_blockexplevel;
+        } else if(qcc_uselessstatements)
+            *qcc_uselessstatements += useless;
 
 		if (pr_subscopedlocals)
 		{
@@ -5708,7 +5749,8 @@ void QCC_PR_ParseStatement (void)
 				}
 			}
 		}
-		return;
+
+		return ret;
 	}
 
 	if (QCC_PR_CheckKeyword(keyword_return, "return"))
@@ -5728,7 +5770,7 @@ void QCC_PR_ParseStatement (void)
 				QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_DONE], 0, 0, NULL));
 			else
 				QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_RETURN], 0, 0, NULL));
-			return;
+			return ret;
 		}
 		e = QCC_PR_Expression (TOP_PRIORITY, 0);
 		e2 = QCC_SupplyConversion(e, pr_scope->type->aux_type->type, true);
@@ -5741,13 +5783,13 @@ void QCC_PR_ParseStatement (void)
 		if (pr_scope->type->aux_type->type != e->type->type)
 			QCC_PR_ParseWarning(WARN_WRONGRETURNTYPE, "\'%s\' returned %s, expected %s", pr_scope->name, e->type->name, pr_scope->type->aux_type->name);
 		QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_RETURN], e, 0, NULL));
-		return;
+		return e;
 	}
 	if (QCC_PR_CheckKeyword(keyword_exit, "exit"))
 	{
 		QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_DONE], 0, 0, NULL));
 		QCC_PR_Expect (";");
-		return;
+		return ret;
 	}
 
 	if (QCC_PR_CheckKeyword(keyword_while, "while"))
@@ -5793,7 +5835,7 @@ void QCC_PR_ParseStatement (void)
 				QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_IFNOT_I], e, 0, &patch1));
 		}
 		QCC_PR_Expect (")");	//after the line number is noted..
-		QCC_PR_ParseStatement ();
+		QCC_PR_ParseStatement(false);
 		QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_GOTO], NULL, 0, &patch3));
 		patch3->a = patch2 - patch3;
 		if (patch1)
@@ -5822,7 +5864,7 @@ void QCC_PR_ParseStatement (void)
 			}
 			num_continues = continues;
 		}
-		return;
+		return ret;
 	}
 	if (QCC_PR_CheckKeyword(keyword_for, "for"))
 	{
@@ -5878,7 +5920,7 @@ void QCC_PR_ParseStatement (void)
 		else
 			patch1 = NULL;
 		if (!QCC_PR_CheckToken(";"))
-			QCC_PR_ParseStatement();	//don't give the hanging ';' warning.
+			QCC_PR_ParseStatement(false);	//don't give the hanging ';' warning.
 		patch3 = &statements[numstatements];
 		for (i = 0 ; i < numtemp ; i++)
 		{
@@ -5908,7 +5950,7 @@ void QCC_PR_ParseStatement (void)
 			num_continues = continues;
 		}
 
-		return;
+		return ret;
 	}
 	if (QCC_PR_CheckKeyword(keyword_do, "do"))
 	{
@@ -5916,7 +5958,7 @@ void QCC_PR_ParseStatement (void)
 		breaks = num_breaks;
 
 		patch1 = &statements[numstatements];
-		QCC_PR_ParseStatement ();
+		QCC_PR_ParseStatement (false);
 		QCC_PR_Expect ("while");
 		QCC_PR_Expect ("(");
 		conditional = 1;
@@ -5968,7 +6010,7 @@ void QCC_PR_ParseStatement (void)
 			num_continues = continues;
 		}
 
-		return;
+		return ret;
 	}
 
 	if (QCC_PR_CheckKeyword(keyword_local, "local"))
@@ -5979,7 +6021,7 @@ void QCC_PR_ParseStatement (void)
 		QCC_PR_ParseDefs (NULL);
 		pr_classtype = functionsclasstype;
 		locals_end = numpr_globals;
-		return;
+		return ret;
 	}
 
 	if (pr_token_type == tt_name)
@@ -5997,7 +6039,7 @@ void QCC_PR_ParseStatement (void)
 //			QCC_PR_ParseWarning("local vars after temp vars\n");
 		QCC_PR_ParseDefs (NULL);
 		locals_end = numpr_globals;
-		return;
+		return ret;
 	}
 
 	if (QCC_PR_CheckKeyword(keyword_state, "state"))
@@ -6005,7 +6047,7 @@ void QCC_PR_ParseStatement (void)
 		QCC_PR_Expect("[");
 		QCC_PR_ParseState();
 		QCC_PR_Expect(";");
-		return;
+		return ret;
 	}
 	if (QCC_PR_CheckToken("#"))
 	{
@@ -6015,7 +6057,7 @@ void QCC_PR_ParseStatement (void)
 		name = QCC_PR_ParseName();
 		QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_STATE], QCC_MakeFloatConst(frame), QCC_PR_GetDef(type_function, name, NULL, false, 0, false), NULL));
 		QCC_PR_Expect(";");
-		return;
+		return ret;
 	}
 
 	if (QCC_PR_CheckKeyword(keyword_if, "if"))
@@ -6056,7 +6098,7 @@ void QCC_PR_ParseStatement (void)
 
 		QCC_PR_Expect (")");	//close bracket is after we save the statement to mem (so debugger does not show the if statement as being on the line after
 
-		QCC_PR_ParseStatement ();
+		QCC_PR_ParseStatement (false);
 
 		if (QCC_PR_CheckKeyword (keyword_else, "else"))
 		{
@@ -6070,14 +6112,14 @@ void QCC_PR_ParseStatement (void)
 //				QCC_PR_ParseWarning(0, "optimised the else");
 				optres_compound_jumps++;
 				patch1->b = &statements[numstatements] - patch1;
-				QCC_PR_ParseStatement ();
+				QCC_PR_ParseStatement (false);
 			}
 			else
 			{
 //				QCC_PR_ParseWarning(0, "using the else");
 				QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_GOTO], 0, 0, &patch2));
 				patch1->b = &statements[numstatements] - patch1;
-				QCC_PR_ParseStatement ();
+				QCC_PR_ParseStatement (false);
 				patch2->a = &statements[numstatements] - patch2;
 
 				if (QCC_PR_StatementBlocksMatch(patch1+1, patch2-patch1, patch2+1, &statements[numstatements] - patch2))
@@ -6087,7 +6129,7 @@ void QCC_PR_ParseStatement (void)
 		else
 			patch1->b = &statements[numstatements] - patch1;
 
-		return;
+		return ret;
 	}
 	if (QCC_PR_CheckKeyword(keyword_switch, "switch"))
 	{
@@ -6192,7 +6234,7 @@ void QCC_PR_ParseStatement (void)
 		QCC_PR_Expect (")");	//close bracket is after we save the statement to mem (so debugger does not show the if statement as being on the line after
 
 		oldst = numstatements;
-		QCC_PR_ParseStatement ();
+		QCC_PR_ParseStatement (false);
 
 		//this is so that a missing goto at the end of your switch doesn't end up in the jumptable again
 		if (oldst == numstatements || !QCC_StatementIsAJump(numstatements-1, numstatements-1))
@@ -6353,7 +6395,7 @@ void QCC_PR_ParseStatement (void)
 			e->temp = et;
 			QCC_FreeTemp(e);
 		}
-		return;
+		return ret;
 	}
 
 	if (QCC_PR_CheckKeyword(keyword_asm, "asm"))
@@ -6365,7 +6407,7 @@ void QCC_PR_ParseStatement (void)
 		}
 		else
 			QCC_PR_ParseAsm ();
-		return;
+		return ret;
 	}
 
 	if (QCC_PR_CheckToken(":"))
@@ -6373,7 +6415,7 @@ void QCC_PR_ParseStatement (void)
 		if (pr_token_type != tt_name)
 		{
 			QCC_PR_ParseError(ERR_BADLABELNAME, "invalid label name \"%s\"", pr_token);
-			return;
+			return ret;
 		}
 
 		for (i = 0; i < num_labels; i++)
@@ -6381,7 +6423,7 @@ void QCC_PR_ParseStatement (void)
 			{
 				QCC_PR_ParseWarning(WARN_DUPLICATELABEL, "Duplicate label %s", pr_token);
 				QCC_PR_Lex();
-				return;
+				return ret;
 			}
 
 		if (num_labels >= max_labels)
@@ -6398,14 +6440,14 @@ void QCC_PR_ParseStatement (void)
 
 //		QCC_PR_ParseWarning("Gotos are evil");
 		QCC_PR_Lex();
-		return;
+		return ret;
 	}
 	if (QCC_PR_CheckKeyword(keyword_goto, "goto"))
 	{
 		if (pr_token_type != tt_name)
 		{
 			QCC_PR_ParseError(ERR_NOLABEL, "invalid label name \"%s\"", pr_token);
-			return;
+			return ret;
 		}
 
 		QCC_PR_Statement (&pr_opcodes[OP_GOTO], 0, 0, &patch2);
@@ -6415,7 +6457,7 @@ void QCC_PR_ParseStatement (void)
 //		QCC_PR_ParseWarning("Gotos are evil");
 		QCC_PR_Lex();
 		QCC_PR_Expect(";");
-		return;
+		return ret;
 	}
 
 	if (QCC_PR_CheckKeyword(keyword_break, "break"))
@@ -6436,7 +6478,7 @@ void QCC_PR_ParseStatement (void)
 			QCC_PR_Statement (&pr_opcodes[OP_GOTO], 0, 0, NULL);
 			num_breaks++;
 			QCC_PR_Expect(";");
-			return;
+			return ret;
 		}
 	}
 	if (QCC_PR_CheckKeyword(keyword_continue, "continue"))
@@ -6450,7 +6492,7 @@ void QCC_PR_ParseStatement (void)
 		QCC_PR_Statement (&pr_opcodes[OP_GOTO], 0, 0, NULL);
 		num_continues++;
 		QCC_PR_Expect(";");
-		return;
+		return ret;
 	}
 	if (QCC_PR_CheckKeyword(keyword_case, "case"))
 	{
@@ -6478,7 +6520,7 @@ void QCC_PR_ParseStatement (void)
 			QCC_PR_ParseError(ERR_CASENOTIMMEDIATE, "Case statements may not use formulas\n");
 		num_cases++;
 		QCC_PR_Expect(":");
-		return;
+		return ret;
 	}
 	if (QCC_PR_CheckKeyword(keyword_default, "default"))
 	{
@@ -6494,7 +6536,7 @@ void QCC_PR_ParseStatement (void)
 		pr_casesdef2[num_cases] = NULL;
 		num_cases++;
 		QCC_PR_Expect(":");
-		return;
+		return ret;
 	}
 
 	if (QCC_PR_CheckKeyword(keyword_thinktime, "thinktime"))
@@ -6522,7 +6564,7 @@ void QCC_PR_ParseStatement (void)
 			QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_STOREP_F], time, nextthink, NULL));
 		}
 		QCC_PR_Expect(";");
-		return;
+		return ret;
 	}
 	if (QCC_PR_CheckToken(";"))
 	{
@@ -6531,17 +6573,23 @@ void QCC_PR_ParseStatement (void)
 		if (!expandedemptymacro)
 			QCC_PR_ParseWarning(WARN_POINTLESSSTATEMENT, "Hanging ';'");
 		pr_source_line = osl;
-		return;
+		return ret;
 	}
 
 //	qcc_functioncalled=0;
 
 	qcc_usefulstatement = false;
-	e = QCC_PR_Expression (TOP_PRIORITY, 0);
+	e = ret  = QCC_PR_Expression (TOP_PRIORITY, 0);
 	expandedemptymacro = false;
 	QCC_PR_Expect (";");
 
-	if (e->type->type != ev_void && !qcc_usefulstatement)
+    if(e->type->type == ev_void)
+        qcc_usefulstatement = true;
+
+    if(qcc_uselessstatements)
+        *qcc_uselessstatements += !qcc_usefulstatement;
+
+	if (!qcc_usefulstatement && !pr_blockexplevel)
 	{
 		int osl = pr_source_line;
 		pr_source_line = statementstart;
@@ -6552,6 +6600,7 @@ void QCC_PR_ParseStatement (void)
 	QCC_FreeTemp(e);
 
 //	qcc_functioncalled=false;
+    return ret;
 }
 
 
@@ -7525,7 +7574,7 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 //
 		while (!QCC_PR_CheckToken("}"))
 		{
-			QCC_PR_ParseStatement ();
+			QCC_PR_ParseStatement (false);
 			QCC_FreeTemps();
 		}
 	}
@@ -9481,6 +9530,8 @@ pbool	QCC_PR_CompileFile (char *string, char *filename)
     pr_in_anon_func = false;
 	pr_source_line = 0;
     pr_inent = NULL;
+    pr_blockexplevel = 0;
+    qcc_uselessstatements = NULL;
 
     memset(pr_anonfunc_buf, 0, sizeof(pr_anonfunc_buf));
 	memcpy(&oldjb, &pr_parse_abort, sizeof(oldjb));
