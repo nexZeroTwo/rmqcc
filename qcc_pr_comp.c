@@ -4177,7 +4177,7 @@ void QCC_PR_EmitClassFromFunction(QCC_def_t *scope, char *tname)
 	df->locals = locals_end - df->parm_start;
 }
 
-QCC_def_t *QCC_PR_ParseComplexVector() {
+QCC_def_t *QCC_PR_ParseComplexVector(void) {
     int elem = 0, i, id = 0;
     char buf[1024];
     QCC_def_t *v[3] = { NULL }, *e, *r;
