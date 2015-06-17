@@ -5663,7 +5663,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
             QCC_UnFreeTemp(tmpFld);
             QCC_UnFreeTemp(tmpEnt);
 
-            eField = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA | EXPR_DISALLOW_ASSIGN);
+            eField = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
 
             if(eField->type->type != ev_field)
                 QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected a field, got %s", TypeName(eField->type));
@@ -5671,13 +5671,13 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
             QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_ADDRESS], tmpEnt, eField, &s));
             s->c = tmpFld->ofs;
 
-            QCC_PR_Expect("=");
+            QCC_PR_Expect(":");
 
             pr_inent = tmpEnt;
             QCC_UnFreeTemp(tmpFld);
             QCC_UnFreeTemp(tmpEnt);
 
-            eValue = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA | EXPR_DISALLOW_ASSIGN);
+            eValue = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
 
             if(typecmp(eValue->type, eField->type->aux_type))
                 QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected %s, got %s", TypeName(eField->type->aux_type), TypeName(eValue->type));
