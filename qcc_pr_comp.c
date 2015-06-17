@@ -5648,42 +5648,57 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 		QCC_PR_ParseError(ERR_INTERNAL, "e == null");
 
     if(e->type->type == ev_entity && QCC_PR_CheckToken("{")) {
+        QCC_dstatement32_t *s;
+        QCC_def_t *tmpEnt, *tmpFld;
+
+        tmpEnt = QCC_GetTemp(type_entity);
+        tmpFld = QCC_GetTemp(type_float);
+
+        QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_STORE_ENT], e, tmpEnt, NULL));
+
         do {
             QCC_def_t *eField, *eValue;
 
-            pr_inent = e;
+            pr_inent = tmpEnt;
+            QCC_UnFreeTemp(tmpFld);
+            QCC_UnFreeTemp(tmpEnt);
+
             eField = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA | EXPR_DISALLOW_ASSIGN);
 
             if(eField->type->type != ev_field)
                 QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected a field, got %s", TypeName(eField->type));
 
+            QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_ADDRESS], tmpEnt, eField, &s));
+            s->c = tmpFld->ofs;
+
             QCC_PR_Expect("=");
 
-            pr_inent = e;
+            pr_inent = tmpEnt;
+            QCC_UnFreeTemp(tmpFld);
+            QCC_UnFreeTemp(tmpEnt);
+
             eValue = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA | EXPR_DISALLOW_ASSIGN);
 
             if(typecmp(eValue->type, eField->type->aux_type))
                 QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected %s, got %s", TypeName(eField->type->aux_type), TypeName(eValue->type));
-
-            eField = QCC_PR_Statement(&pr_opcodes[OP_ADDRESS], e, eField, NULL);
 
             for(op = pr_opcodes; op; ++op) {
                 QCC_type_t *ta = *(op->type_a);
                 QCC_type_t *tb = *(op->type_b);
 
                 if(*op->name == '=' && ta->type == ev_pointer && tb->type == eValue->type->type) {
-                    QCC_PR_Statement(op, eValue, eField, NULL);
+                    QCC_PR_Statement(op, eValue, tmpFld, NULL);
                     break;
                 }
             }
 
             if(!op)
                 QCC_PR_ParseError(ERR_TYPEMISMATCH, "no suitable opcode for %s = %s", eField->type->name, eValue->type->name);
-
         } while(QCC_PR_CheckToken(","));
 
+        e = tmpEnt;
+        QCC_FreeTemp(tmpFld);
         QCC_PR_Expect("}");
-        pr_inent = NULL;
     }
 
 	if (!(exprflags&EXPR_DISALLOW_COMMA) && priority == TOP_PRIORITY && QCC_PR_CheckToken (","))
