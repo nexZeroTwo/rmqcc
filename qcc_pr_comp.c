@@ -5396,8 +5396,12 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 
 		// type check
 
-            if(e->type == type_variant)
+            if(e->type == type_variant) {
                 e->type = e2->type;
+
+                if(e->type == type_vector)
+                    QCC_PR_DummyDef(e->type, e->name, e->scope, e->arraysize, e->ofs, true, false);
+            }
 
 			type_a = e->type->type;
 			type_b = e2->type->type;
@@ -8779,6 +8783,9 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t **p_t
             if(type == type_variant) {
                 *p_type = tmp->type;
                 type = *p_type;
+
+                if(type == type_vector)
+                    QCC_PR_DummyDef(def->type, def->name, def->scope, def->arraysize, def->ofs, true, false);
             }
 
 			if (typecmp(type, tmp->type))
