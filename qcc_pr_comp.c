@@ -5306,6 +5306,23 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 				}
 		}
 
+        if(e->type->type == ev_vector && QCC_PR_CheckToken(".")) {
+            char *comp = QCC_PR_ParseName();
+            unsigned int newofs = e->ofs;
+
+            if(!STRCMP("y", comp))
+                newofs += 1;
+            else if(!STRCMP("z", comp))
+                newofs += 2;
+            else if(STRCMP("x", comp))
+                QCC_PR_ParseError(ERR_EXPECTED, "expected x, y or z, got %s", comp);
+
+            if(e->constant)
+                e = QCC_MakeFloatConst(G_FLOAT(newofs));
+            else
+                e = QCC_PR_DummyDef(type_float, NULL, pr_scope, type_float->size, newofs, false, false);
+        }
+
 		if (pr_token_type != tt_punct && !(exprflags & EXPR_NO_EXPECT_PUNCTATION))
 		{
 			QCC_PR_ParseWarning(WARN_UNEXPECTEDPUNCT, "Expected punctuation");
