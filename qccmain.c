@@ -239,7 +239,7 @@ compiler_flag_t compiler_flag[] = {
 	{&writeasm,				0,				"wasm",			"Dump Assembler",		"Writes out a qc.asm which contains all your functions but in assembler. This is a great way to look for bugs in rmqcc, but can also be used to see exactly what your functions turn into, and thus how to optimise statements better."},			//spit out a qc.asm file, containing an assembler dump of the ENTIRE progs. (Doesn't include initialisation of constants)
 	{&flag_ifstring,		FLAG_MIDCOMPILE,"ifstring",		"if(string) fix",		"Causes if(string) to behave identically to if(string!="") This is most useful with addons of course, but also has adverse effects with FRIK_FILE's fgets, where it becomes impossible to determin the end of the file. In such a case, you can still use asm {IF string 2;RETURN} to detect eof and leave the function."},		//correction for if(string) no-ifstring to get the standard behaviour.
 	{&flag_iffloat,			FLAG_MIDCOMPILE,"iffloat","if(-0.0) fix","Fixes certain floating point logic."},
-	{&flag_acc,				0,				"acc",			"Reacc support",		"Reacc is a pascall like compiler. It was released before the Quake source was released. This flag has a few effects. It sorts all qc files in the current directory into alphabetical order to compile them. It also allows Reacc global/field distinctions, as well as allows ¦ as EOF. Whilst case insensativity and lax type checking are supported by reacc, they are seperate compiler flags in rmqcc."},		//reacc like behaviour of src files.
+	{&flag_acc,				0,				"acc",			"Reacc support",		"Reacc is a pascall like compiler. It was released before the Quake source was released. This flag has a few effects. It sorts all qc files in the current directory into alphabetical order to compile them. It also allows Reacc global/field distinctions, as well as allows Â¦ as EOF. Whilst case insensativity and lax type checking are supported by reacc, they are seperate compiler flags in rmqcc."},		//reacc like behaviour of src files.
 	{&flag_caseinsensative,	0,				"caseinsens",	"Case insensativity",	"Causes rmqcc to become case insensative whilst compiling names. It's generally not advised to use this as it compiles a little more slowly and provides little benefit. However, it is required for full reacc support."},	//symbols will be matched to an insensative case if the specified case doesn't exist. This should b usable for any mod
 	{&flag_laxcasts,		FLAG_MIDCOMPILE,"lax",			"Lax type checks",		"Disables many errors (generating warnings instead) when function calls or operations refer to two normally incompatible types. This is required for reacc support, and can also allow certain (evil) mods to compile that were originally written for frikqcc."},		//Allow lax casting. This'll produce loadsa warnings of course. But allows compilation of certain dodgy code.
 	{&flag_hashonly,		FLAG_MIDCOMPILE,"hashonly",		"Hash-only constants",	"Allows use of only #constant for precompiler constants, allows certain preqcc using mods to compile"},
@@ -2641,6 +2641,7 @@ void QCC_PR_CommandLinePrecompilerOptions (void)
 				qccwarningdisabled[WARN_FIXEDRETURNVALUECONFLICT] = true;
 				qccwarningdisabled[WARN_EXTRAPRECACHE] = true;
 				qccwarningdisabled[WARN_CORRECTEDRETURNTYPE] = true;
+				qccwarningdisabled[WARN_INEFFICIENTPLUSPLUS] = true;
 			}
 			else
 			{
