@@ -4203,14 +4203,7 @@ QCC_def_t *QCC_PR_ParseComplexVector(void) {
     QCC_def_t *v[3] = { NULL }, *e, *r = NULL;
     pbool isimmediate = true;
 
-    /*
-    sprintf(buf, "tempvector*%i", pr_scope->tempvectors);
-    ++pr_scope->tempvectors;
-
     // I'm sorry, I'm too stupid to do this with actual temps.
-
-    r = QCC_PR_GetDef(type_vector, buf, pr_scope, true, 1, false);
-    */
 
     int v_id = 0;
     while(!r) {
