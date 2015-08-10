@@ -350,6 +350,7 @@ typedef struct QCC_def_s
 	temp_t *temp;
 
     int anonfuncs;
+    int tempvec_reusable;
 } QCC_def_t;
 
 //============================================================================

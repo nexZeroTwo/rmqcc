@@ -157,7 +157,6 @@ pbool	pr_dumpasm;
 QCC_string_t	s_file, s_file2;			// filename for function definition
 QCC_def_t       *pr_inent;
 int pr_blockexplevel;
-int pr_tempvectors;
 
 unsigned int			locals_start;		// for tracking local variables vs temps
 unsigned int			locals_end;		// for tracking local variables vs temps
@@ -1647,6 +1646,27 @@ QCC_def_t *QCC_PR_Statement (QCC_opcode_t *op, QCC_def_t *var_a, QCC_def_t *var_
 {
 	QCC_dstatement_t	*statement;
 	QCC_def_t			*var_c=NULL, *temp=NULL;
+
+    if(op - pr_opcodes == OP_STORE_V) {
+        QCC_def_t *tv = NULL;
+        char buf[1024];
+        int v_id = 0;
+
+        while(!tv) {
+            sprintf(buf, "tempvector*%i", v_id);
+            tv = QCC_PR_GetDef(type_vector, buf, pr_scope, false, 1, false);
+            if(!tv)
+                break;
+
+            if(tv && tv->ofs != var_a->ofs)
+                tv = NULL;
+
+            ++v_id;
+        }
+
+        if(tv)
+            tv->tempvec_reusable = true;
+    }
 
 	if (outstatement == (QCC_dstatement_t **)0xffffffff)
 		outstatement = NULL;
@@ -4180,15 +4200,37 @@ void QCC_PR_EmitClassFromFunction(QCC_def_t *scope, char *tname)
 QCC_def_t *QCC_PR_ParseComplexVector(void) {
     int elem = 0, i, id = 0;
     char buf[1024];
-    QCC_def_t *v[3] = { NULL }, *e, *r;
+    QCC_def_t *v[3] = { NULL }, *e, *r = NULL;
     pbool isimmediate = true;
 
-    sprintf(buf, "tempvector*%i", pr_tempvectors);
-    ++pr_tempvectors;
+    /*
+    sprintf(buf, "tempvector*%i", pr_scope->tempvectors);
+    ++pr_scope->tempvectors;
 
     // I'm sorry, I'm too stupid to do this with actual temps.
 
-    r = QCC_PR_GetDef(type_vector, buf, NULL, true, 1, false);
+    r = QCC_PR_GetDef(type_vector, buf, pr_scope, true, 1, false);
+    */
+
+    int v_id = 0;
+    while(!r) {
+        QCC_def_t *tmp_r;
+        sprintf(buf, "tempvector*%i", v_id);
+
+        tmp_r = QCC_PR_GetDef(type_vector, buf, pr_scope, false, 1, false);
+        if(!tmp_r) {
+            tmp_r = QCC_PR_GetDef(type_vector, buf, pr_scope, true, 1, false);
+            tmp_r->tempvec_reusable = true;
+        }
+
+        if(!tmp_r->tempvec_reusable) {
+            ++v_id;
+            continue;
+        }
+
+        r = tmp_r;
+        r->tempvec_reusable = false;
+    }
 
     do {
         if(elem >= 3)
@@ -4208,9 +4250,8 @@ QCC_def_t *QCC_PR_ParseComplexVector(void) {
         v[elem++] = e;
     } while(QCC_PR_CheckToken(","));
 
-    --pr_tempvectors;
-
     if(isimmediate) {
+        r->tempvec_reusable = true;
         pr_immediate_type = type_vector;
 
         // retract our previous STORE_F statements.
@@ -9615,7 +9656,6 @@ pbool	QCC_PR_CompileFile (char *string, char *filename)
 	pr_source_line = 0;
     pr_inent = NULL;
     pr_blockexplevel = 0;
-    pr_tempvectors = 0;
     qcc_uselessstatements = NULL;
 
     memset(pr_anonfunc_buf, 0, sizeof(pr_anonfunc_buf));
