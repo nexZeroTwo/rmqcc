@@ -43,6 +43,7 @@ pbool keyword_thinktime;
 pbool keyword_var;	//allow it to be initialised and set around the place.
 pbool keyword_vector;	//for skipping the local
 pbool keyword_inline;
+pbool keyword_using;
 
 
 pbool keyword_enum;	//kinda like in c, but typedef not supported.
@@ -6005,6 +6006,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 		}
 		return ret;
 	}
+
 	if (QCC_PR_CheckKeyword(keyword_for, "for"))
 	{
 		int old_numstatements;
@@ -6091,6 +6093,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 
 		return ret;
 	}
+
 	if (QCC_PR_CheckKeyword(keyword_do, "do"))
 	{
 		continues = num_continues;
@@ -6188,6 +6191,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 		QCC_PR_Expect(";");
 		return ret;
 	}
+
 	if (QCC_PR_CheckToken("#"))
 	{
 		char *name;
@@ -6270,6 +6274,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 
 		return ret;
 	}
+
 	if (QCC_PR_CheckKeyword(keyword_switch, "switch"))
 	{
 		int op;
@@ -6506,6 +6511,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 				}
 			}
 		}
+
 		if (defaultcase>=0)
 		{
 			QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_GOTO], 0, 0, &patch3));
@@ -6581,6 +6587,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 		QCC_PR_Lex();
 		return ret;
 	}
+
 	if (QCC_PR_CheckKeyword(keyword_goto, "goto"))
 	{
 		if (pr_token_type != tt_name)
@@ -6620,6 +6627,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 			return ret;
 		}
 	}
+
 	if (QCC_PR_CheckKeyword(keyword_continue, "continue"))
 	{
 		if (num_continues >= max_continues)
@@ -6633,6 +6641,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 		QCC_PR_Expect(";");
 		return ret;
 	}
+
 	if (QCC_PR_CheckKeyword(keyword_case, "case"))
 	{
 		if (num_cases >= max_cases)
@@ -6661,6 +6670,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 		QCC_PR_Expect(":");
 		return ret;
 	}
+
 	if (QCC_PR_CheckKeyword(keyword_default, "default"))
 	{
 		if (num_cases >= max_cases)
@@ -6705,6 +6715,42 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 		QCC_PR_Expect(";");
 		return ret;
 	}
+
+    if(QCC_PR_CheckKeyword(keyword_using, "using")) {
+        QCC_def_t *utemp, *uorig = NULL, *uvalue;
+        unsigned int op;
+        char *uname;
+
+        QCC_PR_Expect("(");
+        uname = QCC_PR_ParseName();
+        QCC_PR_Expect("=");
+
+        uvalue = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
+
+        if(pr_scope)
+            uorig = QCC_PR_GetDef(uvalue->type, uname, pr_scope, false, 1, false);
+
+        if(!uorig)
+            uorig = QCC_PR_GetDef(uvalue->type, uname, NULL, false, 1, false);
+
+        if(!uorig)
+            QCC_PR_ParseError(ERR_UNKNOWNVALUE, "No such definition: %s", uname);
+
+        utemp = QCC_GetTemp(uorig->type);
+        op = ((uorig->type->size  > 1)? OP_STORE_V : OP_STORE_F);
+
+        QCC_PR_Statement(pr_opcodes + op, uorig, utemp, NULL);
+        QCC_UnFreeTemp(utemp);
+        QCC_PR_Statement(pr_opcodes + op, uvalue, uorig, NULL);
+        QCC_FreeTemp(uvalue);
+
+        QCC_PR_Expect(")");
+        ret = QCC_PR_ParseStatement(false);
+        QCC_PR_Statement(pr_opcodes + op, utemp, uorig, NULL);
+        QCC_FreeTemp(utemp);
+        return ret;
+    }
+
 	if (QCC_PR_CheckToken(";"))
 	{
 		int osl = pr_source_line;

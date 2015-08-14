@@ -472,7 +472,7 @@ extern pbool keyword_noref;	//nowhere else references this, don't strip it.
 extern pbool keyword_nosave;	//don't write the def to the output.
 extern pbool keyword_union;	//you surly know what a union is!
 extern pbool keyword_inline; //no this is not like in C, used for "anonymous" functions
-
+extern pbool keyword_using;
 
 extern pbool keywords_coexist;
 extern pbool output_parms;
