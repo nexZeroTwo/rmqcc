@@ -5320,7 +5320,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
             if(e->constant)
                 e = QCC_MakeFloatConst(G_FLOAT(newofs));
             else
-                e = QCC_PR_DummyDef(type_float, NULL, pr_scope, type_float->size, newofs, false, false);
+                e = QCC_PR_DummyDef(type_float, NULL, pr_scope, type_float->size, newofs, true, false);
         }
 
 		if (pr_token_type != tt_punct && !(exprflags & EXPR_NO_EXPECT_PUNCTATION))
