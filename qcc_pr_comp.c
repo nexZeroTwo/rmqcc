@@ -140,6 +140,12 @@ QCC_type_t *QCC_PR_PointerType (QCC_type_t *pointsto);
 QCC_type_t *QCC_PR_FieldType (QCC_type_t *pointsto);
 
 QCC_def_t* QCC_PR_ParseStatement (pbool isblockexpr);
+
+QCC_usingdef_t *QCC_PR_UsingDef(QCC_def_t *scope, QCC_def_t *src, QCC_def_t *dest);
+void QCC_PR_RestoreUsingDef(QCC_usingdef_t *udef);
+void QCC_PR_RestoreUsingDefs(QCC_def_t *scope);
+void QCC_PR_PopUsingDef(QCC_def_t *scope);
+
 void QCC_PR_ParseState (void);
 pbool simplestore;
 pbool expandedemptymacro;
@@ -1647,6 +1653,9 @@ QCC_def_t *QCC_PR_Statement (QCC_opcode_t *op, QCC_def_t *var_a, QCC_def_t *var_
 {
 	QCC_dstatement_t	*statement;
 	QCC_def_t			*var_c=NULL, *temp=NULL;
+
+    if(op - pr_opcodes == OP_RETURN)
+        QCC_PR_RestoreUsingDefs(pr_scope);
 
     if(op - pr_opcodes == OP_STORE_V) {
         QCC_def_t *tv = NULL;
@@ -6718,8 +6727,9 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 
     if(QCC_PR_CheckKeyword(keyword_using, "using")) {
         QCC_def_t *utemp, *uorig = NULL, *uvalue;
-        unsigned int op;
+        unsigned int op, stnum, stlast;
         char *uname;
+        pbool needs_restore = true;
 
         QCC_PR_Expect("(");
         uname = QCC_PR_ParseName();
@@ -6745,9 +6755,39 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
         QCC_FreeTemp(uvalue);
 
         QCC_PR_Expect(")");
+        QCC_PR_UsingDef(pr_scope, utemp, uorig);
+
+        stnum = numstatements-1;
         ret = QCC_PR_ParseStatement(false);
-        QCC_PR_Statement(pr_opcodes + op, utemp, uorig, NULL);
-        QCC_FreeTemp(utemp);
+        stlast = numstatements-1;
+
+        while(stnum <= stlast) {
+            QCC_dstatement32_t *st = &statements[stnum];
+
+            switch(st->op) {
+                case OP_IFNOT_S:
+                case OP_IFNOT_F:
+                case OP_IFNOT_I:
+                case OP_IF_S:
+                case OP_IF_F:
+                case OP_IF_I:
+                    stnum += st->b;
+                    continue;
+            }
+
+            if(st->op == OP_RETURN) {
+                // unconditional return found - we don't need to restore
+                needs_restore = false;
+                break;
+            }
+
+            ++stnum;
+        }
+
+        if(needs_restore)
+            QCC_PR_RestoreUsingDef(pr_scope->usingstack);
+
+        QCC_PR_PopUsingDef(pr_scope);
         return ret;
     }
 
@@ -6788,6 +6828,36 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
     return ret;
 }
 
+QCC_usingdef_t *QCC_PR_UsingDef(QCC_def_t *scope, QCC_def_t *src, QCC_def_t *dest) {
+    QCC_usingdef_t *udef = (QCC_usingdef_t*)malloc(sizeof(QCC_usingdef_t));
+    memset(udef, 0, sizeof(udef));
+
+    udef->src = src;
+    udef->dest = dest;
+    udef->next = scope->usingstack;
+    scope->usingstack = udef;
+
+    return udef;
+}
+
+void QCC_PR_RestoreUsingDef(QCC_usingdef_t *udef) {
+    unsigned int op = (udef->src->type->size  > 1)? OP_STORE_V : OP_STORE_F;
+    QCC_PR_Statement(pr_opcodes + op, udef->src, udef->dest, NULL);
+}
+
+void QCC_PR_RestoreUsingDefs(QCC_def_t *scope) {
+    QCC_usingdef_t *ud;
+
+    for(ud = scope->usingstack; ud; ud = ud->next)
+        QCC_PR_RestoreUsingDef(ud);
+}
+
+void QCC_PR_PopUsingDef(QCC_def_t *scope) {
+    QCC_usingdef_t *ud = scope->usingstack->next;
+    QCC_FreeTemp(scope->usingstack->src);
+    free(scope->usingstack);
+    scope->usingstack = ud;
+}
 
 /*
 ==============

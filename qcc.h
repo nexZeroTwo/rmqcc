@@ -322,6 +322,8 @@ typedef struct temp_s {
 } temp_t;
 void QCC_PurgeTemps(void);
 
+typedef struct QCC_usingdef_s;
+
 //not written
 typedef struct QCC_def_s
 {
@@ -351,7 +353,15 @@ typedef struct QCC_def_s
 
     int anonfuncs;
     int tempvec_reusable;
+
+    struct QCC_usingdef_s *usingstack;
 } QCC_def_t;
+
+typedef struct QCC_usingdef_s {;
+    QCC_def_t *src;
+    QCC_def_t *dest;
+    struct QCC_usingdef_s *next;
+} QCC_usingdef_t;
 
 //============================================================================
 
