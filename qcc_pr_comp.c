@@ -3097,7 +3097,7 @@ PR_ParseFunctionCall
 */
 QCC_def_t *QCC_PR_ParseFunctionCall (QCC_def_t *func)	//warning, the func could have no name set if it's a field call.
 {
-	QCC_def_t		*e, *d, *old = {0}, *oself, *out; // warning: ‘old’ may be used uninitialized in this function
+	QCC_def_t		*e, *d, *old = {0}, *oself, *out; // warning: "old" may be used uninitialized in this function
 	int			arg;
 	QCC_type_t		*t, *p;
 	int extraparms=false;
@@ -9010,7 +9010,7 @@ void QCC_PR_ParseDefs (char *classname)
 	QCC_def_t		*def, *d;
 	QCC_function_t	*f;
 	QCC_dfunction_t	*df;
-	int			i = 0; // warning: ‘i’ may be used uninitialized in this function
+	int			i = 0; // warning: "i" may be used uninitialized in this function
 	pbool shared=false;
 	pbool isstatic=defaultstatic;
 	pbool externfnc=false;
