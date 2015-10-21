@@ -357,7 +357,7 @@ typedef struct QCC_def_s
     struct QCC_usingdef_s *usingstack;
 } QCC_def_t;
 
-typedef struct QCC_usingdef_s {;
+typedef struct QCC_usingdef_s {
     QCC_def_t *src;
     QCC_def_t *dest;
     struct QCC_usingdef_s *next;
