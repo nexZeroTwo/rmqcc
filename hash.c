@@ -172,7 +172,6 @@ void *Hash_GetNextInsensative(hashtable_t *table, const char *name, void *old)
 	return NULL;
 }
 
-
 void *Hash_Add(hashtable_t *table, const char *name, void *data, bucket_t *buck)
 {
 	unsigned int bucknum = Hash_Key(name, table->numbuckets);

@@ -8789,6 +8789,22 @@ void QCC_PR_ExpandUnionToFields(QCC_type_t *type, int *fields)
 	QCC_PR_DummyFieldDef(pass, "", pr_scope, 1, fields, true);
 }
 
+void QCC_PR_CheckUnresolvedTypes(QCC_def_t *scope) {
+    int i;
+
+    for(i = 0; i < localstable.numbuckets; ++i) {
+        bucket_t *buck = localstable.bucket[i];
+
+        while(buck) {
+            QCC_def_t *def = (QCC_def_t*)buck->data;
+
+            if(def->scope == scope && def->type->type == ev_variant)
+                QCC_PR_ParseError(ERR_UNRESOLVEDTYPE, "Couldn't infer the type of \"%s\"", def->name);
+
+            buck = buck->next;
+        }
+    }
+}
 
 void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t **p_type, int offset)
 {
@@ -8855,8 +8871,11 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t **p_t
 				else
 					f = NULL;
 			}
-			else
+			else {
 				f = QCC_PR_ParseImmediateStatements (type);
+                QCC_PR_CheckUnresolvedTypes(def);
+            }
+
 			if (!tmp)
 			{
 				pr_scope = parentfunc;
@@ -8866,7 +8885,7 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t **p_t
 				if (numfunctions >= MAX_FUNCTIONS)
 					QCC_Error(ERR_INTERNAL, "Too many function defs");
 
-		// fill in the dfunction
+                // fill in the dfunction
 				df = &functions[numfunctions];
 				numfunctions++;
 				if (f->builtin)
@@ -8886,8 +8905,9 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t **p_t
 				{
 					df->parm_size[i] = parm->size;
 				}
-				/*end function special case*/
 			}
+
+            /*end function special case*/
 		}
 		else if (type->type == ev_string && QCC_PR_CheckName("_"))
 		{
