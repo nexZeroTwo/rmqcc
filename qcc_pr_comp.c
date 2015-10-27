@@ -4345,7 +4345,7 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 
 	name = QCC_PR_ParseName ();
 
-    if(!explicitdecl && !STRCMP(name, "var")) {
+    if(!explicitdecl && (!STRCMP(name, "var") || !STRCMP(name, "const"))) {
         name = QCC_PR_ParseName();
         explicitdecl = true;
     }
@@ -9418,7 +9418,7 @@ void QCC_PR_ParseDefs (char *classname)
 	if(type == NULL) {
         type = type_variant;
 
-        if(!isvar)
+        if(!isvar && !isconstant)
             isimplicit = true;
     }
 
