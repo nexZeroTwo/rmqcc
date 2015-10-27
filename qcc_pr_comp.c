@@ -6169,6 +6169,7 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 		QCC_type_t *functionsclasstype = pr_classtype;
 //		if (locals_end != numpr_globals)	//is this breaking because of locals?
 //			QCC_PR_ParseWarning("local vars after temp vars\n");
+        QCC_PR_ParseWarning(WARN_DEPRECATEDLOCAL, "\"local\" is deprecated, use \"var\" if you have to");
 		QCC_PR_ParseDefs (NULL);
 		pr_classtype = functionsclasstype;
 		locals_end = numpr_globals;
