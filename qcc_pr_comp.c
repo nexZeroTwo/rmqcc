@@ -9766,12 +9766,13 @@ void QCC_PR_ParseDefs (char *classname)
     if(isimplicit)
         QCC_PR_ParseWarning(WARN_IMPLICITDECLARATION, "Implicit declaration");
 
-	if (type->type == ev_function)
-		QCC_PR_CheckToken (";");
-	else
-	{
-		if (!QCC_PR_CheckToken (";"))
+	if(type->type == ev_function && def->initialized) {
+		QCC_PR_CheckToken(";");
+	} else {
+		if(!QCC_PR_CheckToken(";")) {
 			QCC_PR_ParseWarning(WARN_UNDESIRABLECONVENTION, "Missing semicolon at end of definition");
+            QCC_PR_ParsePrintDef(WARN_UNDESIRABLECONVENTION, def);
+        }
 	}
 }
 
