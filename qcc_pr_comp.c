@@ -9193,9 +9193,11 @@ void QCC_PR_ParseDefs (char *classname)
 
 				iv*=2;
 
-				if (QCC_PR_CheckToken("}"))
-					break;
-				QCC_PR_Expect(",");
+                if (QCC_PR_CheckToken("}"))
+                    break;
+                QCC_PR_Expect(",");
+                if (QCC_PR_CheckToken("}"))
+                    break; // accept trailing comma
 			}
 		}
 		else
@@ -9252,9 +9254,11 @@ void QCC_PR_ParseDefs (char *classname)
 
 				fv*=2;
 
-				if (QCC_PR_CheckToken("}"))
-					break;
-				QCC_PR_Expect(",");
+                if (QCC_PR_CheckToken("}"))
+                    break;
+                QCC_PR_Expect(",");
+                if (QCC_PR_CheckToken("}"))
+                    break; // accept trailing comma
 			}
 		}
 		QCC_PR_Expect(";");
