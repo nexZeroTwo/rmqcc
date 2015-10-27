@@ -4207,15 +4207,12 @@ void QCC_PR_EmitClassFromFunction(QCC_def_t *scope, char *tname)
 	df->locals = locals_end - df->parm_start;
 }
 
-QCC_def_t *QCC_PR_ParseComplexVector(void) {
-    int elem = 0, i, id = 0;
-    char buf[1024];
-    QCC_def_t *v[3] = { NULL }, *e, *r = NULL;
-    pbool isimmediate = true;
-
+static QCC_def_t *QCC_PR_GetTempVector(void) {
     // I'm sorry, I'm too stupid to do this with actual temps.
-
+    QCC_def_t *r = NULL;
     int v_id = 0;
+    char buf[1024];
+
     while(!r) {
         QCC_def_t *tmp_r;
         sprintf(buf, "tempvector*%i", v_id);
@@ -4235,6 +4232,15 @@ QCC_def_t *QCC_PR_ParseComplexVector(void) {
         r->tempvec_reusable = false;
     }
 
+    return r;
+}
+
+QCC_def_t *QCC_PR_ParseComplexVector(void) {
+    int elem = 0, i, id = 0;
+    QCC_def_t *v[3] = { NULL }, *e, *r = NULL;
+    pbool isimmediate = true;
+    QCC_dstatement_t *storeStatements[3];
+
     do {
         if(elem >= 3)
             QCC_PR_ParseError(ERR_TOOMANYVECTORELEMENTS, "too many elements in vector (max 3)");
@@ -4248,13 +4254,11 @@ QCC_def_t *QCC_PR_ParseComplexVector(void) {
             isimmediate = false;
 
         QCC_FreeTemp(e);
-        QCC_PR_SimpleStatement(OP_STORE_F, e->ofs, r->ofs + elem, 0, false);
-
+        storeStatements[elem] = QCC_PR_SimpleStatement(OP_STORE_F, e->ofs, 0, 0, false);
         v[elem++] = e;
     } while(QCC_PR_CheckToken(","));
 
     if(isimmediate) {
-        r->tempvec_reusable = true;
         pr_immediate_type = type_vector;
 
         // retract our previous STORE_F statements.
@@ -4270,6 +4274,11 @@ QCC_def_t *QCC_PR_ParseComplexVector(void) {
             QCC_PR_ParseError(ERR_EXPECTED, "expected ], found %s", pr_token);
 
         return QCC_PR_ParseImmediate();
+    } else {
+        r = QCC_PR_GetTempVector();
+
+        for(i = 0; i < elem; ++i)
+            storeStatements[i]->b = r->ofs + i;
     }
 
     QCC_PR_Expect("]");
