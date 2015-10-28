@@ -932,7 +932,6 @@ pbool QCC_OPCodeValid(QCC_opcode_t *op)
 
 		//stores into the globals array.
 		//they can change any global dynamically, but thats no security risk.
-		//rmqcc will not automatically generate these.
 		//fteqw does not support them either.
 		case OP_GSTOREP_I:
 		case OP_GSTOREP_F:
@@ -1073,7 +1072,7 @@ pbool QCC_OPCodeValid(QCC_opcode_t *op)
 		case OP_FETCH_GBL_E:
 		case OP_FETCH_GBL_FNC:
 		case OP_FETCH_GBL_V:
-			return false;	//DPFIXME: DP will not bounds check this properly, it is too permissive.
+			return true;	//DPFIXME: DP will not bounds check this properly, it is too permissive.
 		case OP_CSTATE:
 		case OP_CWSTATE:
 			return false;	//DP does not support this hexenc opcode.
@@ -8260,10 +8259,12 @@ void QCC_PR_EmitArraySetFunction(QCC_def_t *scope, char *arrayname)
 		if (def->type->size != 1)//shift it upwards for larger types
 			QCC_PR_Statement3(&pr_opcodes[OP_MUL_I], index, QCC_MakeIntConst(def->type->size), index, true);
 		QCC_PR_Statement3(&pr_opcodes[OP_GLOBALADDRESS], def, index, index, true);	//comes with built in add
+
 		if (def->type->size >= 3)
-			QCC_PR_Statement3(&pr_opcodes[OP_STOREP_V], value, index, NULL, true);	//*b = a
+			QCC_PR_Statement3(&pr_opcodes[OP_GSTOREP_V], value, index, NULL, true);	//*b = a
 		else
-			QCC_PR_Statement3(&pr_opcodes[OP_STOREP_F], value, index, NULL, true);
+			QCC_PR_Statement3(&pr_opcodes[OP_GSTOREP_F], value, index, NULL, true);
+
 		QCC_PR_Statement(&pr_opcodes[OP_RETURN], value, NULL, NULL);
 
 		//finish the jump
