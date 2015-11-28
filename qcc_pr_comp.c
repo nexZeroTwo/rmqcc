@@ -3974,7 +3974,7 @@ QCC_type_t *QCC_PointerTypeTo(QCC_type_t *type)
 	return newtype;
 }
 
-int basictypefield[ev_union+1];
+int basictypefield[ev_undefined+1];
 char *basictypenames[] = {
 	"void",
 	"string",
@@ -3986,7 +3986,8 @@ char *basictypenames[] = {
 	"pointer",
 	"integer",
 	"struct",
-	"union"
+	"union",
+    "undefined"
 };
 
 QCC_def_t *QCC_MemberInParentClass(char *name, QCC_type_t *clas)
@@ -4343,6 +4344,25 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
             QCC_PR_ParseError(ERR_VOIDBLOCKEXPRESSION, "block expression returns void");
 
         return d;
+    }
+
+    if(QCC_PR_CheckToken("@")) {
+        int parm;
+
+        if(pr_token_type != tt_immediate || (pr_immediate_type != type_float && pr_immediate_type != type_integer)) {
+            QCC_PR_ParseError(ERR_PARSEERRORS, "expected an integer constant after @");
+        }
+
+        if(pr_immediate_type == type_integer)
+            parm = pr_immediate._int;
+        else
+            parm = (int)pr_immediate._float;
+
+        if(parm < 0 || parm >= MAX_PARMS)
+            QCC_PR_ParseError(ERR_PARSEERRORS, "parameter index %i out of range (%i .. %i)", parm, 0, MAX_PARMS-1);
+
+        QCC_PR_Lex();
+        return QCC_PR_DummyDef(type_undefined, NULL, pr_scope, 1, OFS_PARM0 + 3 * parm, false, false);
     }
 
     t = QCC_PR_ParseType(false, true);
@@ -5116,7 +5136,8 @@ QCC_def_t *QCC_PR_Term (void)
 					//ents/classs
 					|| (newtype->type == ev_entity && e->type->type == ev_entity)
 					//variants are fine too
-					|| (newtype->type == ev_variant || e->type->type == ev_variant)
+					|| (newtype->type == ev_variant || e->type->type == ev_variant
+                    || e->type->type == ev_undefined)
 					)
 				{
 					//direct cast
@@ -7604,8 +7625,8 @@ void QCC_Marshal_Locals(int first, int laststatement)
 #ifdef WRITEASM
 void QCC_WriteAsmFunction(QCC_def_t	*sc, unsigned int firststatement, gofs_t firstparm)
 {
-	unsigned int			i;
-	unsigned int p;
+	int i;
+	int p;
 	gofs_t o;
 	QCC_type_t *type;
 	QCC_def_t *param;
@@ -7615,7 +7636,11 @@ void QCC_WriteAsmFunction(QCC_def_t	*sc, unsigned int firststatement, gofs_t fir
 
 	type = sc->type;
 	fprintf(asmfile, "%s(", TypeName(type->aux_type));
-	p = type->num_parms;
+
+    p = type->num_parms;
+    if(p < 0)
+        p = (p * -1) - 1;
+
 	for (o = firstparm, i = 0, type = type->param; i < p; i++, type = type->next)
 	{
 		if (i)
@@ -7626,10 +7651,12 @@ void QCC_WriteAsmFunction(QCC_def_t	*sc, unsigned int firststatement, gofs_t fir
 			if (param->ofs == o)
 				break;
 		}
-		if (param)
-			fprintf(asmfile, "%s %s /* at %d */", TypeName(type), param->name, o);
+
+		if (param) {
+            fprintf(asmfile, "%s %s /* at %d */", TypeName(type), param->name, o);
+        }
 		else
-			fprintf(asmfile, "%s /* at %d */", TypeName(type), o);
+            fprintf(asmfile, "%s /* at %d */", TypeName(type), o);
 
 		o += type->size;
 	}
@@ -7739,8 +7766,12 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 		return f;
 	}
 
-	if (type->num_parms < 0)
-		QCC_PR_ParseError (ERR_FUNCTIONWITHVARGS, "QC function with variable arguments and function body");
+    int numparms = type->num_parms;
+
+	if(numparms < 0) {
+        numparms = (numparms * -1) - 1;
+		//QCC_PR_ParseError (ERR_FUNCTIONWITHVARGS, "QC function with variable arguments and function body");
+    }
 
 	f->builtin = 0;
 //
@@ -7753,7 +7784,7 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 	freeofs = NULL;
 
 	parm = type->param;
-	for (i=0 ; i<type->num_parms ; i++)
+	for (i=0 ; i<numparms ; i++)
 	{
 		if (!*pr_parm_names[i])
 			QCC_PR_ParseError(ERR_PARAMWITHNONAME, "Parameter is not named");
@@ -7771,16 +7802,16 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 		parm = parm->next;
 	}
 
-	if (type->num_parms)
+	if (numparms)
 		locals_start = locals_end = defs[0]->ofs;
 
 	freeofs = oldfofs;
 
 	f->code = numstatements;
 
-	if (type->num_parms > MAX_PARMS)
+	if (numparms > MAX_PARMS)
 	{
-		for (i = MAX_PARMS; i < type->num_parms; i++)
+		for (i = MAX_PARMS; i < numparms; i++)
 		{
 			if (!extra_parms[i - MAX_PARMS])
 			{

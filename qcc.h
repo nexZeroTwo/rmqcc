@@ -386,7 +386,7 @@ typedef union QCC_eval_s
 const extern	unsigned int		type_size[];
 //extern	QCC_def_t	*def_for_type[9];
 
-extern	QCC_type_t	*type_void, *type_string, *type_float, *type_vector, *type_entity, *type_field, *type_function, *type_pointer, *type_integer, *type_variant, *type_floatfield;
+extern	QCC_type_t	*type_void, *type_string, *type_float, *type_vector, *type_entity, *type_field, *type_function, *type_pointer, *type_integer, *type_variant, *type_undefined, *type_floatfield;
 
 struct QCC_function_s
 {

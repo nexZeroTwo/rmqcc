@@ -64,6 +64,7 @@ QCC_type_t	*type_function;// = {ev_function/*, &def_function*/,NULL,&type_void};
 QCC_type_t	*type_pointer;// = {ev_pointer/*, &def_pointer*/};
 QCC_type_t	*type_integer;// = {ev_integer/*, &def_integer*/};
 QCC_type_t	*type_variant;// = {ev_integer/*, &def_integer*/};
+QCC_type_t  *type_undefined;
 
 QCC_type_t	*type_floatfield;// = {ev_field/*, &def_field*/, NULL, &type_float};
 
@@ -3089,9 +3090,9 @@ char *TypeName(QCC_type_t *type)
 	static int op;
 	char *ret;
 
-
 	op++;
 	ret = buffer[op&1];
+
 	if (type->type == ev_field)
 	{
 		type = type->aux_type;

@@ -1660,6 +1660,7 @@ void	QCC_PR_BeginCompilation (void *memory, int memsize)
 	type_pointer = QCC_PR_NewType("__pointer", ev_pointer);
 	type_integer = QCC_PR_NewType("__integer", ev_integer);
 	type_variant = QCC_PR_NewType("__variant", ev_variant);
+    type_undefined = QCC_PR_NewType("__undefined", ev_undefined);
 
 	type_floatfield = QCC_PR_NewType("fieldfloat", ev_field);
 	type_floatfield->aux_type = type_float;
