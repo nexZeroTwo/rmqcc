@@ -350,6 +350,8 @@ enum qcop_e {
 	OP_SUBSTORE_FI,
 	OP_SUBSTOREP_FI,
 
+    OP_STORE_U,
+
 	OP_NUMOPS			//246
 };
 

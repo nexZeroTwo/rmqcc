@@ -552,6 +552,8 @@ QCC_opcode_t pr_opcodes[] =
  {7, "-=", "OP_SUBSTORE_FI",	6,	ASSOC_RIGHT_RESULT,		&type_pointer, &type_integer, &type_float},
  {7, "-=", "OP_SUBSTOREP_FI",	6,	ASSOC_RIGHT_RESULT,		&type_pointer, &type_integer, &type_float},
 
+ {6, "=", "STORE_U",            6,  ASSOC_RIGHT,            &type_undefined, &type_undefined, &type_undefined},
+
  {0, NULL}
 };
 
@@ -755,6 +757,7 @@ QCC_opcode_t *opcodeprioritized[TOP_PRIORITY+1][128] =
 		&pr_opcodes[OP_STORE_IF],
 		&pr_opcodes[OP_STORE_FI],
 		&pr_opcodes[OP_STORE_P],
+        &pr_opcodes[OP_STORE_U],
 
 		&pr_opcodes[OP_STOREP_F],
 		&pr_opcodes[OP_STOREP_V],
@@ -1676,6 +1679,9 @@ QCC_def_t *QCC_PR_Statement (QCC_opcode_t *op, QCC_def_t *var_a, QCC_def_t *var_
         if(tv)
             tv->tempvec_reusable = true;
     }
+
+    if(op - pr_opcodes == OP_STORE_U)
+        op = pr_opcodes + OP_STORE_V;
 
 	if (outstatement == (QCC_dstatement_t **)0xffffffff)
 		outstatement = NULL;
