@@ -825,6 +825,53 @@ QCC_opcode_t *opcodeprioritized[TOP_PRIORITY+1][128] =
 	}
 };
 
+pbool QCC_OPCodeOverloadable(QCC_opcode_t *op) {
+    int num = op - pr_opcodes;
+
+    switch(num) {
+        case OP_STORE_F:
+        case OP_STORE_V:
+        case OP_STORE_S:
+        case OP_STORE_ENT:
+        case OP_STORE_FLD:
+        case OP_STORE_FNC:
+
+        case OP_STOREP_F:
+        case OP_STOREP_V:
+        case OP_STOREP_S:
+        case OP_STOREP_ENT:
+        case OP_STOREP_FLD:
+        case OP_STOREP_FNC:
+
+        case OP_MULSTORE_F:
+        case OP_MULSTORE_V:
+        case OP_MULSTOREP_F:
+        case OP_MULSTOREP_V:
+
+        case OP_DIVSTORE_F:
+        case OP_DIVSTOREP_F:
+
+        case OP_ADDSTORE_F:
+        case OP_ADDSTORE_V:
+        case OP_ADDSTOREP_F:
+        case OP_ADDSTOREP_V:
+
+        case OP_SUBSTORE_F:
+        case OP_SUBSTORE_V:
+        case OP_SUBSTOREP_F:
+        case OP_SUBSTOREP_V:
+
+        case OP_BITSET:
+        case OP_BITSETP:
+        case OP_BITCLR:
+        case OP_BITCLRP:
+            return false;
+
+        default:
+            return num < OP_NUMREALOPS;
+    }
+}
+
 pbool QCC_OPCodeValid(QCC_opcode_t *op)
 {
 	int num;
@@ -5528,6 +5575,11 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 				}
 				op = opcodeprioritized[priority][++opnum];
 			}
+
+            if(QCC_OPCodeOverloadable(bestop) && !QCC_OPCodeValid(bestop)) {
+                bestop = NULL;
+            }
+
 			if (bestop == NULL)
 			{
 				if (oldop->priority == CONDITION_PRIORITY)
@@ -5539,7 +5591,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 						op = oldop;
 						QCC_PR_ParseWarning(WARN_LAXCAST, "type mismatch for %s (%s and %s)", oldop->name, e->type->name, e2->type->name);
 					}
-					else {
+					else if(QCC_OPCodeOverloadable(oldop)) {
                         QCC_def_t *args[2], *func, *rhs;
 
                         // XXX: dumb string matching is a silly way to do this...
@@ -5550,14 +5602,15 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
                         func = QCC_PR_GetDef(type_function, fname, NULL, false, 1, false);
 
                         if(!func) {
-                            QCC_PR_ParseError (ERR_TYPEMISMATCH, "type mismatch for %s (%s and %s), and no overloading function %s defined", oldop->name, e->type->name, e2->type->name, fname);
+                            QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch for %s (%s and %s), and no overloading function %s defined", oldop->name, e->type->name, e2->type->name, fname);
                         }
 
                         args[0] = e;
                         args[1] = e2;
                         e = QCC_PR_GenerateFunctionCall(func, args, 2);
                         break;
-                    }
+                    } else
+                        QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch for %s (%s and %s)", oldop->name, e->type->name, e2->type->name);
 				}
 			}
 			else
