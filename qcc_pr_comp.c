@@ -844,8 +844,32 @@ pbool QCC_OPCodeValid(QCC_opcode_t *op)
 	case QCF_STANDARD:
 	case QCF_KK7:
 	case QCF_QTEST:
+    case QCF_DPRM:
 		if (num < OP_MULSTORE_F)
 			return true;
+
+        if (qcc_targetformat == QCF_DPRM) {
+            switch(num) {
+                case OP_FETCH_GBL_F:
+                case OP_FETCH_GBL_V:
+                case OP_FETCH_GBL_S:
+                case OP_FETCH_GBL_E:
+                case OP_FETCH_GBL_FNC:
+                case OP_CONV_FTOI:
+                case OP_MUL_I:
+                case OP_GLOBALADDRESS:
+                case OP_GSTOREP_I:
+                case OP_GSTOREP_F:
+                case OP_GSTOREP_ENT:
+                case OP_GSTOREP_FLD:
+                case OP_GSTOREP_S:
+                case OP_GSTOREP_FNC:
+                case OP_GSTOREP_V:
+                case OP_BOUNDCHECK:
+                    return true;
+            }
+        }
+
 		return false;
 	case QCF_HEXEN2:
 		if (num >= OP_SWITCH_V && num <= OP_SWITCH_FNC)	//these were assigned numbers but were never actually implemtented in standard h2.
@@ -4672,6 +4696,8 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 
 	if (idx)
 	{
+        pbool emulate = false;
+
 		if (d->type->type == ev_pointer)
 		{
 			switch (t->type)
@@ -4780,37 +4806,53 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 		}
 		else if (QCC_OPCodeValid(&pr_opcodes[OP_FETCH_GBL_F]))
 		{
+            int optype = t->type;
+
+            // Added for DPRM so we can use this for field arrays, too.
+            if(optype == ev_field)
+                optype = t->aux_type->type;
+
 			/*hexen2 format has opcodes to read arrays (but has no way to write)*/
-			switch(t->type)
+			switch(optype)
 			{
 			case ev_float:
 				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_F], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
-				st->a = d->ofs;
+
+                // I don't know WTF was this here for, but it broke everything... at least for DPRM.
+                // Also removed the same thing from all other cases.
+                //
+				// st->a = d->ofs;
 				break;
 			case ev_vector:
 				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_V], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
-				st->a = d->ofs;
 				break;
 			case ev_string:
 				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_S], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
-				st->a = d->ofs;
 				break;
 			case ev_entity:
 				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_E], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
-				st->a = d->ofs;
 				break;
 			case ev_function:
 				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_FNC], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
-				st->a = d->ofs;
 				break;
 			default:
+                if (qcc_targetformat == QCF_DPRM) {
+                    emulate = true;
+                    break;
+                }
+
 				QCC_PR_ParseError(ERR_NOVALIDOPCODES, "No op available. Try assembler");
 				d = NULL;
 				break;
 			}
-			d->type = t;
+
+            if (!emulate)
+                d->type = t;
 		}
-		else
+        else
+            emulate = true;
+		
+        if (emulate)
 		{
 			/*emulate the array access using a function call to do the read for us*/
 			QCC_def_t *args[1], *funcretr;
@@ -8092,6 +8134,11 @@ void QCC_PR_EmitArrayGetFunction(QCC_def_t *scope, char *arrayname)
 
 	QCC_def_t *fasttrackpossible;
 
+    if (qcc_targetformat == QCF_DPRM) {
+        QCC_PR_ParseError(ERR_INTERNAL, "QCC_PR_EmitArrayGetFunction... on the DPRM target? No way.");
+        return;
+    }
+
 	if (flag_fasttrackarrays)
 		fasttrackpossible = QCC_PR_GetDef(type_float, "__ext__fasttrackarrays", NULL, true, 1, false);
 	else
@@ -8254,12 +8301,13 @@ void QCC_PR_EmitArraySetFunction(QCC_def_t *scope, char *arrayname)
 	QCC_dfunction_t *df;
 	QCC_def_t *def, *index, *value;
 
-	QCC_def_t *fasttrackpossible;
+    pbool forcefasttrack = false;
+	QCC_def_t *fasttrackpossible = NULL;
 
-	if (flag_fasttrackarrays)
+    if (qcc_targetformat == QCF_DPRM)
+        forcefasttrack = true;
+	else if (flag_fasttrackarrays)
 		fasttrackpossible = QCC_PR_GetDef(type_float, "__ext__fasttrackarrays", NULL, true, 1, false);
-	else
-		fasttrackpossible = NULL;
 
 	def = QCC_PR_GetDef(NULL, arrayname, NULL, false, 0, false);
 	pr_scope = scope;
@@ -8277,18 +8325,28 @@ void QCC_PR_EmitArraySetFunction(QCC_def_t *scope, char *arrayname)
 	df->parm_size[1] = def->type->size;
 	df->numparms = 2;
 	df->parm_start = numpr_globals;
-	index = QCC_PR_GetDef(type_float, "indexs___", def, true, 1, false);
-	value = QCC_PR_GetDef(def->type, "value___", def, true, 1, false);
+
+    if(forcefasttrack) {
+        index = QCC_PR_DummyDef(type_float, "indexs___", def, 1, OFS_PARM0, true, false);
+        value = QCC_PR_DummyDef(type_float, "value___", def, 1, OFS_PARM1, true, false);
+        ++index->references;
+        ++value->references;
+    } else {    
+        index = QCC_PR_GetDef(type_float, "indexs___", def, true, 1, false);
+        value = QCC_PR_GetDef(def->type, "value___", def, true, 1, false);
+    }
+
 	locals_end = numpr_globals;
 	df->locals = locals_end - df->parm_start;
 
 	G_FUNCTION(scope->ofs) = df - functions;
 
-	if (fasttrackpossible)
+	if (fasttrackpossible || forcefasttrack)
 	{
 		QCC_dstatement_t *st;
 
-		QCC_PR_Statement(pr_opcodes+OP_IFNOT_I, fasttrackpossible, NULL, &st);
+        if(!forcefasttrack)
+            QCC_PR_Statement(pr_opcodes+OP_IFNOT_I, fasttrackpossible, NULL, &st);
 		//note that the array size is coded into the globals, one index before the array.
 
 		QCC_PR_Statement3(&pr_opcodes[OP_CONV_FTOI], index, NULL, index, true);	//address stuff is integer based, but standard qc (which this accelerates in supported engines) only supports floats
@@ -8305,18 +8363,17 @@ void QCC_PR_EmitArraySetFunction(QCC_def_t *scope, char *arrayname)
 		QCC_PR_Statement(&pr_opcodes[OP_RETURN], value, NULL, NULL);
 
 		//finish the jump
-		st->b = &statements[numstatements] - st;
+        if(!forcefasttrack)
+            st->b = &statements[numstatements] - st;
 	}
 
-	QCC_PR_Statement3(pr_opcodes+OP_BITAND_F, index, index, index, false);
-	QCC_PR_ArraySetRecurseDivide(def, index, value, 0, def->arraysize);
+    if(!forcefasttrack) {
+    	QCC_PR_Statement3(pr_opcodes+OP_BITAND_F, index, index, index, false);
+    	QCC_PR_ArraySetRecurseDivide(def, index, value, 0, def->arraysize);
+    }
 
 	QCC_PR_Statement(pr_opcodes+OP_DONE, 0, 0, NULL);
-
-
-
 	QCC_WriteAsmFunction(pr_scope, df->first_statement, df->parm_start);
-
 	QCC_FreeTemps();
 }
 

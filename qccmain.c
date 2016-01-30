@@ -272,6 +272,7 @@ struct {
 	{QCF_DARKPLACES,"darkplaces"},
 	{QCF_DARKPLACES,"dp"},
 	{QCF_QTEST,		"qtest"},
+    {QCF_DPRM,      "dprm"},
 	{0,				NULL}
 };
 
@@ -607,6 +608,7 @@ pbool QCC_WriteData (int crc)
 	switch (qcc_targetformat)
 	{
 	case QCF_HEXEN2:
+    case QCF_DPRM:
 	case QCF_STANDARD:
 		if (bodylessfuncs)
 			printf("Warning: There are some functions without bodies.\n");
@@ -623,7 +625,9 @@ pbool QCC_WriteData (int crc)
 		}
 		else
 		{
-			if (numpr_globals >= 32768)	//not much of a different format. Rewrite output to get it working on original executors?
+            if (qcc_targetformat == QCF_DPRM)
+                printf("DarkPlacesRM will be required\n");
+			else if (numpr_globals >= 32768)	//not much of a different format. Rewrite output to get it working on original executors?
 				printf("An enhanced executor will be required (FTE/QF/KK)\n");
 			else
 				printf("Progs should run on any Quake executor\n");
@@ -1259,6 +1263,7 @@ strofs = (strofs+3)&~3;
 		break;
 	case QCF_STANDARD:
 	case QCF_HEXEN2:	//urgh
+    case QCF_DPRM:
 		progs.version = PROG_VERSION;
 		break;
 	case QCF_DARKPLACES:
@@ -2756,6 +2761,8 @@ void QCC_SetDefaultProperties (void)
 		qcc_targetformat = QCF_FTE;
 	else if (QCC_CheckParm ("-dp"))
 		qcc_targetformat = QCF_DARKPLACES;
+    else if (QCC_CheckParm ("-dprm"))
+        qcc_targetformat = QCF_DPRM;
 	else
 		qcc_targetformat = QCF_STANDARD;
 

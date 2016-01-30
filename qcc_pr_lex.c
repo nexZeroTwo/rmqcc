@@ -867,6 +867,8 @@ pbool QCC_PR_Precompiler(void)
 				}
 				else if (!QC_strcasecmp(msg, "KK7"))
 					qcc_targetformat = QCF_KK7;
+                else if (!QC_strcasecmp(msg, "DPRM"))
+                    qcc_targetformat = QCF_DPRM;
 				else if (!QC_strcasecmp(msg, "DP") || !QC_strcasecmp(msg, "DARKPLACES"))
 					qcc_targetformat = QCF_DARKPLACES;
 				else if (!QC_strcasecmp(msg, "FTEDEBUG"))
