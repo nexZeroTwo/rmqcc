@@ -1322,8 +1322,6 @@ void QCC_PR_LexString (void)
 				continue;
 			}
 		}
-		else if (c == 0x7C && flag_acc)	//reacc support... reacc is strange.
-			c = '\n';
 		else
 			c |= texttype;
 
@@ -3337,83 +3335,7 @@ QCC_type_t *QCC_PR_ParseFunctionType (int newtype, QCC_type_t *returntype)
 		return ftype;
 	return QCC_PR_FindType (ftype);
 }
-QCC_type_t *QCC_PR_ParseFunctionTypeReacc (int newtype, QCC_type_t *returntype)
-{
-	QCC_type_t	*ftype, *ptype, *nptype;
-	char	*name;
-	char	argname[64];
-	int definenames = !recursivefunctiontype;
 
-	recursivefunctiontype++;
-
-	ftype = QCC_PR_NewType(type_function->name, ev_function);
-
-	ftype->aux_type = returntype;	// return type
-	ftype->num_parms = 0;
-	ptype = NULL;
-
-
-	if (!QCC_PR_CheckToken (")"))
-	{
-		if (QCC_PR_CheckToken ("..."))
-			ftype->num_parms = -1;	// variable args
-		else
-			do
-			{
-				if (ftype->num_parms>=MAX_PARMS+MAX_EXTRA_PARMS)
-					QCC_PR_ParseError(ERR_TOOMANYTOTALPARAMETERS, "Too many parameters. Sorry. (limit is %i)\n", MAX_PARMS+MAX_EXTRA_PARMS);
-
-				if (QCC_PR_CheckToken ("..."))
-				{
-					ftype->num_parms = (ftype->num_parms * -1) - 1;
-					break;
-				}
-
-				if (QCC_PR_CheckName("arg"))
-				{
-					sprintf(argname, "arg%i", ftype->num_parms);
-					name = argname;
-					nptype = QCC_PR_NewType("Variant", ev_variant);
-				}
-				else if (QCC_PR_CheckName("vect"))	//this can only be of vector sizes, so...
-				{
-					sprintf(argname, "arg%i", ftype->num_parms);
-					name = argname;
-					nptype = QCC_PR_NewType("Vector", ev_vector);
-				}
-				else
-				{
-					name = QCC_PR_ParseName();
-					QCC_PR_Expect(":");
-					nptype = QCC_PR_ParseType(true, false);
-				}
-
-				if (nptype->type == ev_void)
-					break;
-				if (!ptype)
-				{
-					ptype = nptype;
-					ftype->param = ptype;
-				}
-				else
-				{
-					ptype->next = nptype;
-					ptype = ptype->next;
-				}
-//				type->name = "FUNC PARAMETER";
-
-				if (definenames)
-					strcpy (pr_parm_names[ftype->num_parms], name);
-				ftype->num_parms++;
-			} while (QCC_PR_CheckToken (";"));
-
-		QCC_PR_Expect (")");
-	}
-	recursivefunctiontype--;
-	if (newtype)
-		return ftype;
-	return QCC_PR_FindType (ftype);
-}
 QCC_type_t *QCC_PR_PointerType (QCC_type_t *pointsto)
 {
 	QCC_type_t	*ptype, *e;
@@ -3428,6 +3350,7 @@ QCC_type_t *QCC_PR_PointerType (QCC_type_t *pointsto)
 	}
 	return e;
 }
+
 QCC_type_t *QCC_PR_FieldType (QCC_type_t *pointsto)
 {
 	QCC_type_t	*ptype;

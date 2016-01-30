@@ -490,7 +490,6 @@ extern pbool autoprototype;
 extern pbool pr_subscopedlocals;
 extern pbool flag_ifstring;
 extern pbool flag_iffloat;
-extern pbool flag_acc;
 extern pbool flag_caseinsensative;
 extern pbool flag_laxcasts;
 extern pbool flag_hashonly;
@@ -555,7 +554,6 @@ QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail);
 extern pbool type_inlinefunction;
 QCC_type_t *QCC_TypeForName(char *name);
 QCC_type_t *QCC_PR_ParseFunctionType (int newtype, QCC_type_t *returntype);
-QCC_type_t *QCC_PR_ParseFunctionTypeReacc (int newtype, QCC_type_t *returntype);
 char *QCC_PR_ParseName (void);
 CompilerConstant_t *QCC_PR_DefineName(char *name);
 

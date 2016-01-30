@@ -49,15 +49,6 @@ pbool keyword_using;
 pbool keyword_enum;	//kinda like in c, but typedef not supported.
 pbool keyword_enumflags;	//like enum, but doubles instead of adds 1.
 pbool keyword_typedef;	//fixme
-#define keyword_codesys		flag_acc	//reacc needs this (forces the resultant crc)
-#define keyword_function	flag_acc	//reacc needs this (reacc has this on all functions, wierd eh?)
-#define keyword_objdata		flag_acc	//reacc needs this (following defs are fields rather than globals, use var to disable)
-#define keyword_object		flag_acc	//reacc needs this (an entity)
-#define keyword_pfunc		flag_acc	//reacc needs this (pointer to function)
-#define keyword_system		flag_acc	//reacc needs this (potatos)
-#define keyword_real		flag_acc	//reacc needs this (a float)
-#define keyword_exit		flag_acc	//emits an OP_DONE opcode.
-#define keyword_external	flag_acc	//reacc needs this (a builtin)
 pbool keyword_extern;	//function is external, don't error or warn if the body was not found
 pbool keyword_shared;	//mark global to be copied over when progs changes (part of FTE_MULTIPROGS)
 pbool keyword_noref;	//nowhere else references this, don't strip it.
@@ -72,7 +63,6 @@ pbool autoprototype;		//take two passes over the source code. First time round d
 pbool pr_subscopedlocals;	//causes locals to be valid ONLY within their statement block. (they simply can't be referenced by name outside of it)
 pbool flag_ifstring;		//makes if (blah) equivelent to if (blah != "") which resolves some issues in multiprogs situations.
 pbool flag_iffloat;			//use an op_if_f instruction instead of op_if so if(-0) evaluates to false.
-pbool flag_acc;				//reacc like behaviour of src files (finds *.qc in start dir and compiles all in alphabetical order)
 pbool flag_caseinsensative;	//symbols will be matched to an insensative case if the specified case doesn't exist. This should b usable for any mod
 pbool flag_laxcasts;		//Allow lax casting. This'll produce loadsa warnings of course. But allows compilation of certain dodgy code.
 pbool flag_hashonly;		//Allows use of only #constant for precompiler constants, allows certain preqcc using mods to compile
@@ -2908,8 +2898,6 @@ QCC_def_t *QCC_PR_GenerateFunctionCall (QCC_def_t *func, QCC_def_t *arglist[], i
 	QCC_def_t		*d, *oldret, *oself;
 	int			i;
 	QCC_type_t		*t;
-	int extraparms=false;
-	int np;
 	int laststatement = numstatements;
 
 	int callconvention;
@@ -2936,18 +2924,6 @@ QCC_def_t *QCC_PR_GenerateFunctionCall (QCC_def_t *func, QCC_def_t *arglist[], i
 	}
 
 // copy the arguments to the global parameter variables
-	if (t->type == ev_variant)
-	{
-		extraparms = true;
-		np = 0;
-	}
-	else if (t->num_parms < 0)
-	{
-		extraparms = true;
-		np = (t->num_parms * -1) - 1;
-	}
-	else
-		np = t->num_parms;
 
 	if (strchr(func->name, ':') && laststatement && statements[laststatement-1].op == OP_LOAD_FNC && statements[laststatement-1].c == func->ofs)
 	{	//we're entering OO code with a different self.
@@ -3132,16 +3108,9 @@ QCC_def_t *QCC_PR_ParseFunctionCall (QCC_def_t *func)	//warning, the func could 
 	int extraparms=false;
 	int np;
 
-	int callconvention;
-
 	QCC_def_t *param[MAX_PARMS+MAX_EXTRA_PARMS];
 
 	func->timescalled++;
-
-	if (QCC_OPCodeValid(&pr_opcodes[OP_CALL1H]))
-		callconvention = OP_CALL1H;	//FTE extended
-	else
-		callconvention = OP_CALL1;	//standard
 
 	t = func->type;
 
@@ -4266,7 +4235,7 @@ static QCC_def_t *QCC_PR_GetTempVector(void) {
 }
 
 QCC_def_t *QCC_PR_ParseComplexVector(void) {
-    int elem = 0, i, id = 0;
+    int elem = 0, i;
     QCC_def_t *v[3] = { NULL }, *e, *r = NULL;
     pbool isimmediate = true;
     QCC_dstatement_t *storeStatements[3];
@@ -4327,9 +4296,8 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 {
 	QCC_def_t		*d, *od, *tmp, *idx;
 	QCC_type_t		*t;
-	char		*name, *pold = pr_file_p;
+	char		*name;
 	QCC_dstatement_t *st;
-    int lold = pr_source_line;
 
 	char membername[2048];
     pbool explicitdecl = false;
@@ -4338,34 +4306,9 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 	if (pr_token_type == tt_immediate)
 		return QCC_PR_ParseImmediate ();
 
-	if (QCC_PR_CheckToken("["))	//reacc support
-	{	//looks like a funky vector. :)
-        int i;
-		vec3_t v;
-
-        for(i = 0; i < 3; ++i) {
-            if(i)
-                QCC_PR_Lex();
-
-            if(pr_token_type != tt_immediate) {
-                pr_file_p = pold;
-                pr_source_line = lold;
-                QCC_PR_Lex();
-                return QCC_PR_ParseComplexVector();
-            }
-
-            v[i] = pr_immediate._float;
-        }
-
-        pr_immediate_type = type_vector;
-		pr_immediate.vector[0] = v[0];
-		pr_immediate.vector[1] = v[1];
-		pr_immediate.vector[2] = v[2];
-		pr_immediate_type = type_vector;
-		d = QCC_PR_ParseImmediate();
-		QCC_PR_Expect("]");
-		return d;
-	}
+    if(QCC_PR_CheckToken("[")) {
+        return QCC_PR_ParseComplexVector();
+    }
 
     if(pr_token_type == tt_punct && !STRCMP(pr_token, "{")) {
         d = QCC_PR_ParseStatement(true);
@@ -5337,7 +5280,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 	int opnum;
 
 	QCC_def_t		*e, *e2;
-	etype_t		type_a, type_b, type_c;
+	etype_t		type_a, type_c;
 
 	if (priority == 0)
 		return QCC_PR_Term ();
@@ -5508,10 +5451,6 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
             }
 
 			type_a = e->type->type;
-			type_b = e2->type->type;
-
-//			if (type_a == ev_pointer && type_b == ev_pointer)
-//				QCC_PR_ParseWarning(0, "Debug: pointer op pointer");
 
 			if (op->name[0] == '.')// field access gets type from field
 			{
@@ -6010,12 +5949,6 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 			QCC_PR_ParseWarning(WARN_WRONGRETURNTYPE, "\'%s\' returned %s, expected %s", pr_scope->name, e->type->name, pr_scope->type->aux_type->name);
 		QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_RETURN], e, 0, NULL));
 		return e;
-	}
-	if (QCC_PR_CheckKeyword(keyword_exit, "exit"))
-	{
-		QCC_FreeTemp(QCC_PR_Statement (&pr_opcodes[OP_DONE], 0, 0, NULL));
-		QCC_PR_Expect (";");
-		return ret;
 	}
 
 	if (QCC_PR_CheckKeyword(keyword_while, "while"))
@@ -6959,9 +6892,7 @@ void QCC_PR_ParseState (void)
 {
 	char	*name;
 	QCC_def_t	*s1, *def, *sc = pr_scope;
-	char f;
 
-	f = *pr_token;
 	if (QCC_PR_CheckToken("++") || QCC_PR_CheckToken("--"))
 	{
 		s1 = QCC_PR_ParseImmediate ();
@@ -7800,19 +7731,6 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 		locals_start = locals_end = OFS_PARM0; //hmm...
 		return f;
 	}
-	if (QCC_PR_CheckKeyword(keyword_external, "external"))
-	{	//reacc style builtin
-		if (pr_token_type != tt_immediate
-		|| pr_immediate_type != type_float
-		|| pr_immediate._float != (int)pr_immediate._float)
-			QCC_PR_ParseError (ERR_BADBUILTINIMMEDIATE, "Bad builtin immediate");
-		f->builtin = (int)-pr_immediate._float;
-		QCC_PR_Lex ();
-		QCC_PR_Expect(";");
-
-		locals_start = locals_end = OFS_PARM0; //hmm...
-		return f;
-	}
 
     int numparms = type->num_parms;
 
@@ -7900,18 +7818,7 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 	}
 	else
 	{
-		if (QCC_PR_CheckKeyword (keyword_var, "var"))	//reacc support
-		{	//parse lots of locals
-			char *name;
-			do {
-				name = QCC_PR_ParseName();
-				QCC_PR_Expect(":");
-				e2 = QCC_PR_GetDef(QCC_PR_ParseType(false, false), name, pr_scope, true, 1, false);
-				QCC_PR_Expect(";");
-			} while(!QCC_PR_CheckToken("{"));
-		}
-		else
-			QCC_PR_Expect ("{");
+		QCC_PR_Expect ("{");
 //
 // parse regular statements
 //
@@ -9131,10 +9038,8 @@ Called at the outer layer and when a local statement is hit
 void QCC_PR_ParseDefs (char *classname)
 {
 	char		*name;
-	QCC_type_t		*type, *parm;
+	QCC_type_t		*type;
 	QCC_def_t		*def, *d;
-	QCC_function_t	*f;
-	QCC_dfunction_t	*df;
 	int			i = 0; // warning: "i" may be used uninitialized in this function
 	pbool shared=false;
 	pbool isstatic=defaultstatic;
@@ -9146,7 +9051,6 @@ void QCC_PR_ParseDefs (char *classname)
 	pbool allocatenew = true;
 	pbool inlinefunction = false;
     pbool isimplicit = false;
-	gofs_t oldglobals;
 	int arraysize;
 
 	while (QCC_PR_CheckToken(";"))
@@ -9382,140 +9286,6 @@ void QCC_PR_ParseDefs (char *classname)
 		return;
 	}
 
-	if (flag_acc)
-	{
-		char *oldp;
-		if (QCC_PR_CheckKeyword (keyword_codesys, "CodeSys"))	//reacc support.
-		{
-			if (ForcedCRC)
-				QCC_PR_ParseError(ERR_BADEXTENSION, "progs crc was already specified - only one is allowed");
-			ForcedCRC = (int)pr_immediate._float;
-			QCC_PR_Lex();
-			QCC_PR_Expect(";");
-			return;
-		}
-
-		oldp = pr_file_p;
-		if (QCC_PR_CheckKeyword (keyword_var, "var"))	//reacc support.
-		{
-			if (accglobalsblock == 3)
-			{
-				if (!QCC_PR_GetDef(type_void, "end_sys_fields", NULL, false, 0, false))
-					QCC_PR_GetDef(type_void, "end_sys_fields", NULL, true, 1, false);
-			}
-
-			QCC_PR_ParseName();
-			if (QCC_PR_CheckToken(":"))
-				accglobalsblock = 1;
-			pr_file_p = oldp;
-			QCC_PR_Lex();
-		}
-
-		if (QCC_PR_CheckKeyword (keyword_function, "function"))	//reacc support.
-		{
-			accglobalsblock = 2;
-		}
-		if (QCC_PR_CheckKeyword (keyword_objdata, "objdata"))	//reacc support.
-		{
-			if (accglobalsblock == 3)
-			{
-				if (!QCC_PR_GetDef(type_void, "end_sys_fields", NULL, false, 0, false))
-					QCC_PR_GetDef(type_void, "end_sys_fields", NULL, true, 1, false);
-			}
-			else
-				if (!QCC_PR_GetDef(type_void, "end_sys_globals", NULL, false, 0, false))
-					QCC_PR_GetDef(type_void, "end_sys_globals", NULL, true, 1, false);
-			accglobalsblock = 3;
-		}
-	}
-
-	if (!pr_scope)
-	switch(accglobalsblock)//reacc support.
-	{
-	case 1:
-		{
-		char *oldp = pr_file_p;
-		name = QCC_PR_ParseName();
-		if (!QCC_PR_CheckToken(":"))	//nope, it wasn't!
-		{
-			QCC_PR_IncludeChunk(name, true, NULL);
-			QCC_PR_Lex();
-			QCC_PR_UnInclude();
-			pr_file_p = oldp;
-			break;
-		}
-		if (QCC_PR_CheckKeyword(keyword_object, "object"))
-			QCC_PR_GetDef(type_entity, name, NULL, true, 1, true);
-		else if (QCC_PR_CheckKeyword(keyword_string, "string"))
-			QCC_PR_GetDef(type_string, name, NULL, true, 1, true);
-		else if (QCC_PR_CheckKeyword(keyword_real, "real"))
-		{
-			def = QCC_PR_GetDef(type_float, name, NULL, true, 1, true);
-			if (QCC_PR_CheckToken("="))
-			{
-				G_FLOAT(def->ofs) = pr_immediate._float;
-				QCC_PR_Lex();
-			}
-		}
-		else if (QCC_PR_CheckKeyword(keyword_vector, "vector"))
-		{
-			def = QCC_PR_GetDef(type_vector, name, NULL, true, 1, true);
-			if (QCC_PR_CheckToken("="))
-			{
-				QCC_PR_Expect("[");
-				G_FLOAT(def->ofs+0) = pr_immediate._float;
-				QCC_PR_Lex();
-				G_FLOAT(def->ofs+1) = pr_immediate._float;
-				QCC_PR_Lex();
-				G_FLOAT(def->ofs+2) = pr_immediate._float;
-				QCC_PR_Lex();
-				QCC_PR_Expect("]");
-			}
-		}
-		else if (QCC_PR_CheckKeyword(keyword_pfunc, "pfunc"))
-			QCC_PR_GetDef(type_function, name, NULL, true, 1, true);
-		else
-			QCC_PR_ParseError(ERR_BADNOTTYPE, "Bad type\n");
-		QCC_PR_Expect (";");
-
-		if (QCC_PR_CheckKeyword (keyword_system, "system"))
-			QCC_PR_Expect (";");
-		return;
-		}
-	case 2:
-		name = QCC_PR_ParseName();
-		QCC_PR_GetDef(type_function, name, NULL, true, 1, true);
-		QCC_PR_CheckToken (";");
-		return;
-	case 3:
-		{
-		char *oldp = pr_file_p;
-		name = QCC_PR_ParseName();
-		if (!QCC_PR_CheckToken(":"))	//nope, it wasn't!
-		{
-			QCC_PR_IncludeChunk(name, true, NULL);
-			QCC_PR_Lex();
-			QCC_PR_UnInclude();
-			pr_file_p = oldp;
-			break;
-		}
-		if (QCC_PR_CheckKeyword(keyword_object, "object"))
-			QCC_PR_GetDef(QCC_PR_FieldType(type_entity), name, NULL, true, 1, true);
-		else if (QCC_PR_CheckKeyword(keyword_string, "string"))
-			QCC_PR_GetDef(QCC_PR_FieldType(type_string), name, NULL, true, 1, true);
-		else if (QCC_PR_CheckKeyword(keyword_real, "real"))
-			QCC_PR_GetDef(QCC_PR_FieldType(type_float), name, NULL, true, 1, true);
-		else if (QCC_PR_CheckKeyword(keyword_vector, "vector"))
-			QCC_PR_GetDef(QCC_PR_FieldType(type_vector), name, NULL, true, 1, true);
-		else if (QCC_PR_CheckKeyword(keyword_pfunc, "pfunc"))
-			QCC_PR_GetDef(QCC_PR_FieldType(type_function), name, NULL, true, 1, true);
-		else
-			QCC_PR_ParseError(ERR_BADNOTTYPE, "Bad type\n");
-		QCC_PR_Expect (";");
-		return;
-		}
-	}
-
 	while(1)
 	{
 		if (QCC_PR_CheckKeyword(keyword_extern, "extern"))
@@ -9557,91 +9327,6 @@ void QCC_PR_ParseDefs (char *classname)
 	{
 		printf ("Only functions may be defined as external (yet)\n");
 		externfnc=false;
-	}
-
-	if (!pr_scope && QCC_PR_CheckKeyword(keyword_function, "function"))	//reacc support.
-	{
-		name = QCC_PR_ParseName ();
-		QCC_PR_Expect("(");
-		type = QCC_PR_ParseFunctionTypeReacc(false, type);
-		QCC_PR_Expect(";");
-		def = QCC_PR_GetDef (type, name, NULL, true, 1, false);
-
-		if (autoprototype)
-		{	//ignore the code and stuff
-
-			if (QCC_PR_CheckKeyword(keyword_external, "external"))
-			{	//builtin
-				QCC_PR_Lex();
-				QCC_PR_Expect(";");
-			}
-			else
-			{
-				int blev = 1;
-
-				while (!QCC_PR_CheckToken("{"))	//skip over the locals.
-				{
-					if (pr_token_type == tt_eof)
-					{
-						QCC_PR_ParseError(0, "Unexpected EOF");
-						break;
-					}
-					QCC_PR_Lex();
-				}
-
-				//balance out the { and }
-				while(blev)
-				{
-					if (pr_token_type == tt_eof)
-						break;
-					if (QCC_PR_CheckToken("{"))
-						blev++;
-					else if (QCC_PR_CheckToken("}"))
-						blev--;
-					else
-						QCC_PR_Lex();	//ignore it.
-				}
-			}
-			return;
-		}
-
-		def->references++;
-
-		pr_scope = def;
-		f = QCC_PR_ParseImmediateStatements (type);
-		pr_scope = NULL;
-		def->initialized = 1;
-		def->isstatic = isstatic;
-		G_FUNCTION(def->ofs) = numfunctions;
-		f->def = def;
-//				if (pr_dumpasm)
-//					PR_PrintFunction (def);
-
-		if (numfunctions >= MAX_FUNCTIONS)
-			QCC_Error(ERR_INTERNAL, "Too many function defs");
-
-// fill in the dfunction
-		df = &functions[numfunctions];
-		numfunctions++;
-		if (f->builtin)
-			df->first_statement = -f->builtin;
-		else
-			df->first_statement = f->code;
-
-		if (f->builtin && opt_function_names)
-			optres_function_names += strlen(f->def->name);
-		else
-			df->s_name = QCC_CopyString (f->def->name);
-		df->s_file = s_file2;
-		df->numparms =  f->def->type->num_parms;
-		df->locals = locals_end - locals_start;
-		df->parm_start = locals_start;
-		for (i=0,parm = type->param ; i<df->numparms ; i++, parm = parm->next)
-		{
-			df->parm_size[i] = parm->size;
-		}
-
-		return;
 	}
 
 //	if (pr_scope && (type->type == ev_field) )
@@ -9737,8 +9422,6 @@ void QCC_PR_ParseDefs (char *classname)
 		}
 		else
 			pr_classtype = NULL;
-
-		oldglobals = numpr_globals;
 
 		def = QCC_PR_GetDef (type, name, pr_scope, allocatenew, arraysize, !nosave);
 
