@@ -5528,6 +5528,10 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 				}
 				op = opcodeprioritized[priority][++opnum];
 			}
+
+            if(!QCC_OPCodeValid(bestop))
+                bestop = NULL;
+
 			if (bestop == NULL)
 			{
 				if (oldop->priority == CONDITION_PRIORITY)
