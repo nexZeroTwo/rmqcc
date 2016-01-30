@@ -231,6 +231,7 @@ compiler_flag_t compiler_flag[] = {
 	{&keyword_vector,		defaultkeyword, "vector",		"Keyword: vector",		"Disables the 'vector' keyword."},
     {&keyword_inline,       defaultkeyword, "inline",       "Keyword: inline",      "Disables the 'inline' keyword."},
     {&keyword_using,        defaultkeyword, "using",        "Keyword: using",       "Disables the 'using' keyword."},
+    {&keyword_operator,     defaultkeyword, "operator",     "Keyword: operator",    "Disables the 'operator' keyword."},
 
 
 	//options

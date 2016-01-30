@@ -44,6 +44,7 @@ pbool keyword_var;	//allow it to be initialised and set around the place.
 pbool keyword_vector;	//for skipping the local
 pbool keyword_inline;
 pbool keyword_using;
+pbool keyword_operator;
 
 
 pbool keyword_enum;	//kinda like in c, but typedef not supported.
@@ -5538,8 +5539,25 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 						op = oldop;
 						QCC_PR_ParseWarning(WARN_LAXCAST, "type mismatch for %s (%s and %s)", oldop->name, e->type->name, e2->type->name);
 					}
-					else
-						QCC_PR_ParseError (ERR_TYPEMISMATCH, "type mismatch for %s (%s and %s)", oldop->name, e->type->name, e2->type->name);
+					else {
+                        QCC_def_t *args[2], *func, *rhs;
+
+                        // XXX: dumb string matching is a silly way to do this...
+                        // ...will probably choke on typedefs.
+
+                        char *fname = qcva("operator%s(%s, %s)", oldop->name, TypeName(e->type), TypeName(e2->type));
+
+                        func = QCC_PR_GetDef(type_function, fname, NULL, false, 1, false);
+
+                        if(!func) {
+                            QCC_PR_ParseError (ERR_TYPEMISMATCH, "type mismatch for %s (%s and %s), and no overloading function %s defined", oldop->name, e->type->name, e2->type->name, fname);
+                        }
+
+                        args[0] = e;
+                        args[1] = e2;
+                        e = QCC_PR_GenerateFunctionCall(func, args, 2);
+                        break;
+                    }
 				}
 			}
 			else
@@ -5591,6 +5609,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 
 			break;
 		}
+
 		if (!op)
 		{
 			if (e == NULL)
@@ -5725,6 +5744,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 			break;	// next token isn't at this priority level
 		}
 	}
+
 	if (e == NULL)
 		QCC_PR_ParseError(ERR_INTERNAL, "e == null");
 
@@ -9037,7 +9057,7 @@ Called at the outer layer and when a local statement is hit
 */
 void QCC_PR_ParseDefs (char *classname)
 {
-	char		*name;
+	char		*name, opername[4];
 	QCC_type_t		*type;
 	QCC_def_t		*def, *d;
 	int			i = 0; // warning: "i" may be used uninitialized in this function
@@ -9332,8 +9352,10 @@ void QCC_PR_ParseDefs (char *classname)
 //	if (pr_scope && (type->type == ev_field) )
 //		QCC_PR_ParseError ("Fields must be global");
 
+    memset(opername, 0, sizeof(opername));
+
 	do
-	{		
+	{
 		if (QCC_PR_CheckToken (";"))
 		{
 			if (type->type == ev_field && (type->aux_type->type == ev_union || type->aux_type->type == ev_struct))
@@ -9350,7 +9372,16 @@ void QCC_PR_ParseDefs (char *classname)
 		}
 		else
 		{
-			name = QCC_PR_ParseName ();
+            if(QCC_PR_CheckKeyword(keyword_operator, "operator")) {
+                if(pr_token_type != tt_punct) {
+                    QCC_PR_ParseError(ERR_EXPECTED, "Expected an operator after the 'operator' keyword");
+                }
+
+                strncpy(opername, pr_token, sizeof(opername));
+                QCC_PR_Lex();
+            } else {
+                name = QCC_PR_ParseName();
+            }
 		}
 
 		if (QCC_PR_CheckToken("::") && !classname)
@@ -9405,6 +9436,31 @@ void QCC_PR_ParseDefs (char *classname)
 				QCC_PR_ParseWarning(WARN_UNSAFEFUNCTIONRETURNTYPE, "Function returning function. Is this what you meant? (suggestion: use typedefs)");
 			inlinefunction = false;
 			type = QCC_PR_ParseFunctionType(false, type);
+
+            if(*opername) {
+                char funcname[MAX_NAME];
+                int i;
+
+                memset(funcname, 0, sizeof(funcname));
+
+                if(type->num_parms != 2)
+                    QCC_PR_ParseError(ERR_EXPECTED, "operator functions must have exactly 2 parameters");
+
+                strcat(funcname, "operator");
+                strcat(funcname, opername);
+                strcat(funcname, "(");
+
+                for(i = 0; i < type->num_parms; ++i) {
+                    if(i)
+                        strcat(funcname, ", ");
+                    strcat(funcname, TypeName(&type->param[i]));
+                }
+
+                strcat(funcname, ")");
+
+                name = qccHunkAlloc(strlen(funcname+1));
+                strcpy(name, funcname);
+            }
 		}
 
 		if (classname)
