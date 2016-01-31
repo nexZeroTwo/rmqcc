@@ -1627,6 +1627,17 @@ QCC_type_t *QCC_PR_NewType (char *name, int basictype)
 	return &qcc_typeinfo[numtypeinfos-1];
 }
 
+QCC_type_t *QCC_PR_TypeFromBasicType(etype_t basictype) {
+    int i;
+
+    for(i = 0; i < numtypeinfos; ++i)
+        if(qcc_typeinfo[i].type == basictype)
+            return qcc_typeinfo + i;
+
+    QCC_PR_ParseError(ERR_INTERNAL, "bad basictype %d", basictype);
+    return NULL;
+}
+
 /*
 ==============
 PR_BeginCompilation
@@ -1666,6 +1677,7 @@ void	QCC_PR_BeginCompilation (void *memory, int memsize)
 	type_integer = QCC_PR_NewType("__integer", ev_integer);
 	type_variant = QCC_PR_NewType("__variant", ev_variant);
     type_undefined = QCC_PR_NewType("__undefined", ev_undefined);
+    type_null = QCC_PR_NewType("null_t", ev_null);
 
 	type_floatfield = QCC_PR_NewType("fieldfloat", ev_field);
 	type_floatfield->aux_type = type_float;

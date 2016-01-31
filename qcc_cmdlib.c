@@ -29,7 +29,8 @@ const unsigned int		type_size[] = {1,	//void
 						3,	//fixme: how big should a variant be?
 						0,	//ev_struct. variable sized.
 						0,	//ev_union. variable sized.
-                        3   //ev_undefined
+                        3,  //ev_undefined
+                        1   //ev_null
 						};
 
 /*

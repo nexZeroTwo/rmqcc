@@ -1203,6 +1203,14 @@ static int QCC_ShouldConvert(QCC_def_t *var, etype_t wanted)
 	/*impossible*/
 	return -1;
 }
+
+QCC_def_t *QCC_ForceCast(QCC_def_t *var, QCC_type_t *type) {
+    if(type->type == ev_pointer)
+        type = type->aux_type;
+
+    return QCC_PR_DummyDef(type, NULL, NULL, 1, var->ofs, false, false);
+}
+
 QCC_def_t *QCC_SupplyConversion(QCC_def_t *var, etype_t wanted, pbool fatal)
 {
 	extern char *basictypenames[];
@@ -1231,6 +1239,9 @@ QCC_def_t *QCC_SupplyConversion(QCC_def_t *var, etype_t wanted, pbool fatal)
 			}
 		}
 	}
+
+    if (var->type->type == ev_null)
+        return QCC_ForceCast(var, QCC_PR_TypeFromBasicType(wanted));
 
 	o = QCC_ShouldConvert(var, wanted);
 
@@ -3754,6 +3765,9 @@ QCC_def_t *QCC_PR_ParseFunctionCall (QCC_def_t *func)	//warning, the func could 
 
 			if (p)
 			{
+                if(e->type->type == ev_null)
+                    e = QCC_ForceCast(e, p);
+
 				if (typecmp(e->type, p))
 				/*if (e->type->type != ev_integer && p->type != ev_function)
 				if (e->type->type != ev_function && p->type != ev_integer)
@@ -4021,7 +4035,7 @@ QCC_type_t *QCC_PointerTypeTo(QCC_type_t *type)
 	return newtype;
 }
 
-int basictypefield[ev_undefined+1];
+int basictypefield[ev_null+1];
 char *basictypenames[] = {
 	"void",
 	"string",
@@ -4034,7 +4048,8 @@ char *basictypenames[] = {
 	"integer",
 	"struct",
 	"union",
-    "undefined"
+    "undefined",
+    "null_t"
 };
 
 QCC_def_t *QCC_MemberInParentClass(char *name, QCC_type_t *clas)
@@ -4469,7 +4484,13 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
             fromj->b = &statements[numstatements] - fromj;
             e = QCC_PR_Expression(TOP_PRIORITY, EXPR_NO_EXPECT_PUNCTATION | EXPR_DISALLOW_COMMA);
 
-            if (typecmp(e->type, e2->type) != 0)
+            if(e->type->type == ev_null)
+                e = QCC_ForceCast(e, e2->type);
+
+            if(e2->type->type == ev_null)
+                e2 = QCC_ForceCast(e2, e->type);
+
+            if(typecmp(e->type, e2->type) != 0)
                 QCC_PR_ParseError(0, "if operator with mismatching types\n");
 
             QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[(e2->type->size>=3)?OP_STORE_V:OP_STORE_F], e, e2, NULL));
@@ -4786,6 +4807,10 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 			funcretr = QCC_PR_GetDef(type_function, qcva("ArraySet*%s", d->name), NULL, true, 1, false);
 
 			rhs = QCC_PR_Expression(TOP_PRIORITY, 0);
+
+            if(rhs->type->type == ev_null)
+                rhs = QCC_ForceCast(rhs, d->type);
+
 			if (rhs->type->type != d->type->type)
 				QCC_PR_ParseErrorPrintDef(ERR_TYPEMISMATCH, d, "Type Mismatch on array assignment");
 
@@ -5491,6 +5516,9 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 
 		// type check
 
+            if(e2->type->type == ev_null)
+                e2 = QCC_ForceCast(e2, e->type);
+
             if(e->type == type_variant) {
                 e->type = e2->type;
 
@@ -6014,7 +6042,9 @@ QCC_def_t* QCC_PR_ParseStatement(pbool isblockexpr)
 		e2 = QCC_SupplyConversion(e, pr_scope->type->aux_type->type, true);
 		if (e != e2)
 		{
-			QCC_PR_ParseWarning(WARN_CORRECTEDRETURNTYPE, "\'%s\' returned %s, expected %s, conversion supplied", pr_scope->name, e->type->name, pr_scope->type->aux_type->name);
+            if (e->type->type != ev_null) {
+                QCC_PR_ParseWarning(WARN_CORRECTEDRETURNTYPE, "\'%s\' returned %s, expected %s, conversion supplied", pr_scope->name, e->type->name, pr_scope->type->aux_type->name);
+            }
 			e = e2;
 		}
 		QCC_PR_Expect (";");
@@ -9018,6 +9048,9 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t **p_t
 		{
 			tmp = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
 
+            if(tmp->type->type == ev_null)
+                tmp = QCC_ForceCast(tmp, type);
+
             if(type == type_variant) {
                 *p_type = tmp->type;
                 type = *p_type;
@@ -9039,7 +9072,7 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t **p_t
 				else if (type->type == ev_integer && tmp->type->type == ev_float)
 					tmp = QCC_PR_Statement (&pr_opcodes[OP_CONV_FTOI], tmp, 0, NULL);
 				else
-					QCC_PR_ParseErrorPrintDef (ERR_BADIMMEDIATETYPE, def, "wrong initializer type");
+					QCC_PR_ParseErrorPrintDef (ERR_BADIMMEDIATETYPE, def, "wrong initializer type (expected %s, got %s)", TypeName(type), TypeName(tmp->type));
 			}
 		}
 

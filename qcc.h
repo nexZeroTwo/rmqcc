@@ -386,7 +386,7 @@ typedef union QCC_eval_s
 const extern	unsigned int		type_size[];
 //extern	QCC_def_t	*def_for_type[9];
 
-extern	QCC_type_t	*type_void, *type_string, *type_float, *type_vector, *type_entity, *type_field, *type_function, *type_pointer, *type_integer, *type_variant, *type_undefined, *type_floatfield;
+extern	QCC_type_t	*type_void, *type_string, *type_float, *type_vector, *type_entity, *type_field, *type_function, *type_pointer, *type_integer, *type_variant, *type_undefined, *type_null, *type_floatfield;
 
 struct QCC_function_s
 {
@@ -550,6 +550,7 @@ void QCC_PR_Lex (void);
 // reads the next token into pr_token and classifies its type
 
 QCC_type_t *QCC_PR_NewType (char *name, int basictype);
+QCC_type_t *QCC_PR_TypeFromBasicType(etype_t basictype);
 QCC_type_t *QCC_PointerTypeTo(QCC_type_t *type);
 QCC_type_t *QCC_PR_ParseType (int newtype, pbool silentfail);
 extern pbool type_inlinefunction;

@@ -65,6 +65,7 @@ QCC_type_t	*type_pointer;// = {ev_pointer/*, &def_pointer*/};
 QCC_type_t	*type_integer;// = {ev_integer/*, &def_integer*/};
 QCC_type_t	*type_variant;// = {ev_integer/*, &def_integer*/};
 QCC_type_t  *type_undefined;
+QCC_type_t  *type_null;
 
 QCC_type_t	*type_floatfield;// = {ev_field/*, &def_field*/, NULL, &type_float};
 
