@@ -545,6 +545,12 @@ QCC_opcode_t pr_opcodes[] =
 
  {6, "=", "STORE_U",            6,  ASSOC_RIGHT,            &type_undefined, &type_undefined, &type_undefined},
 
+ {6, "~", "BITNOT_F",           3,  ASSOC_LEFT,             &type_float, &type_void, &type_float},
+ {6, "~", "BITNOT_I",           3,  ASSOC_LEFT,             &type_integer, &type_void, &type_integer},
+
+ {6, "%", "MODULO_F",           3,  ASSOC_LEFT,             &type_float, &type_float, &type_float},
+ {6, "%", "MODULO_I",           3,  ASSOC_LEFT,             &type_integer, &type_integer, &type_integer},
+
  {0, NULL}
 };
 
@@ -667,6 +673,12 @@ QCC_opcode_t *opcodeprioritized[TOP_PRIORITY+1][128] =
 		&pr_opcodes[OP_DIV_F],
 		&pr_opcodes[OP_DIV_I],
 		&pr_opcodes[OP_DIV_VF],
+
+        &pr_opcodes[OP_MODULO_F],
+        &pr_opcodes[OP_MODULO_I],
+
+        &pr_opcodes[OP_BITNOT_F],
+        &pr_opcodes[OP_BITNOT_I],
 
 		&pr_opcodes[OP_BITAND_F],
 		&pr_opcodes[OP_BITAND_I],
@@ -866,6 +878,10 @@ pbool QCC_OPCodeOverloadable(QCC_opcode_t *op) {
         case OP_BITCLR:
         case OP_BITCLRP:
             return false;
+
+        case OP_MODULO_F:
+        case OP_MODULO_I:
+            return true;
 
         default:
             return num < OP_NUMREALOPS;
@@ -1959,6 +1975,14 @@ QCC_def_t *QCC_PR_Statement (QCC_opcode_t *op, QCC_def_t *var_a, QCC_def_t *var_
 						return var_b;
 					}
 					break;
+
+                case OP_BITNOT_I:
+                    ++optres_constantarithmatic;
+                    return QCC_MakeIntConst(~G_INT(var_a->ofs));
+
+                case OP_BITNOT_F:
+                    ++optres_constantarithmatic;
+                    return QCC_MakeFloatConst(~(int)G_FLOAT(var_a->ofs));
 				}
 			}
 		}
@@ -2544,6 +2568,7 @@ QCC_def_t *QCC_PR_Statement (QCC_opcode_t *op, QCC_def_t *var_a, QCC_def_t *var_
 				//t = c & i
 				//c = c - t
 				break;
+
 			default:	//no way will this be hit...
 				QCC_PR_ParseError(ERR_INTERNAL, "opcode invalid 3 times %i", op - pr_opcodes);
 			}
@@ -2575,6 +2600,22 @@ QCC_def_t *QCC_PR_Statement (QCC_opcode_t *op, QCC_def_t *var_a, QCC_def_t *var_
 			statement = &statements[numstatements];
 			numstatements++;
 			break;
+
+        case OP_BITNOT_I:
+        case OP_BITNOT_F: {
+            pbool isint = (op - pr_opcodes == OP_BITNOT_I);
+
+            --numstatements;
+            temp = QCC_PR_Statement(pr_opcodes + (isint? OP_ADD_I : OP_ADD_F), var_a, QCC_MakeFloatConst(1), NULL);
+            statement = &statements[numstatements];
+            ++numstatements;
+
+            op = pr_opcodes + (isint? OP_SUB_I : OP_SUB_F);
+            var_a = isint? QCC_MakeIntConst(0) : QCC_MakeFloatConst(0);
+            var_b = temp;
+            QCC_FreeTemp(temp);
+            break;
+        }
 
 		default:
 			QCC_PR_ParseError(ERR_BADEXTENSION, "Opcode \"%s|%s\" not valid for target", op->name, op->opname);
@@ -5172,7 +5213,24 @@ QCC_def_t *QCC_PR_Term (void)
 				break;
 			}
 			return e2;
-		}
+		} else if (QCC_PR_CheckToken("~")) {
+            e = QCC_PR_Expression (UNARY_PRIORITY, EXPR_DISALLOW_COMMA);
+
+            switch(e->type->type)
+            {
+            case ev_float:
+                e2 = QCC_PR_Statement (&pr_opcodes[OP_BITNOT_F], e, 0, NULL);
+                break;
+            case ev_integer:
+                e2 = QCC_PR_Statement (&pr_opcodes[OP_BITNOT_I], e, 0, NULL);
+                break;
+            default:
+                QCC_PR_ParseError (ERR_BADNOTTYPE, "type mismatch for ~");
+                e2 = NULL;
+                break;
+            }
+            return e2;
+        }
 
 		if (QCC_PR_CheckToken ("("))
 		{
@@ -5438,7 +5496,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 //			if (op->priority != priority)
 //				continue;
 
-            if(*pr_token == '=' && (exprflags & EXPR_DISALLOW_ASSIGN))
+            if(!STRCMP(pr_token, "=") && (exprflags & EXPR_DISALLOW_ASSIGN))
                 continue;
 
 			if (!QCC_PR_CheckToken (op->name))

@@ -42,15 +42,15 @@ int numCompilerConstants;
 extern pbool expandedemptymacro;
 
 
-char	*pr_punctuation[] =
+char *pr_punctuation[] =
 // longer symbols must be before a shorter partial match
-{"&&", "||", "<=", ">=","==", "!=", "/=", "*=", "+=", "-=", "(+)", "(-)", "|=", "&~=", "++", "--", "->", "::", ";", ",", "!", "*", "/", "(", ")", "-", "+", "=", "[", "]", "{", "}", "...", "..", ".", "<<", "<", ">>", ">" , "?", "#" , "@", "&" , "|", "^", ":", NULL};
+{"&&", "||", "<=", ">=","==", "!=", "/=", "*=", "+=", "-=", "(+)", "(-)", "|=", "&~=", "++", "--", "->", "::", ";", ",", "!", "*", "/", "(", ")", "-", "+", "=", "[", "]", "{", "}", "...", "..", ".", "<<", "<", ">>", ">" , "?", "#" , "@", "&" , "|", "^", ":", "~", "%", NULL};
 
 char *pr_punctuationremap[] =	//a nice bit of evilness.
 //(+) -> |=
 //-> -> .
 //(-) -> &~=
-{"&&", "||", "<=", ">=","==", "!=", "/=", "*=", "+=", "-=", "|=",  "&~=", "|=", "&~=", "++", "--", ".", "::", ";", ",", "!", "*", "/", "(", ")", "-", "+", "=", "[", "]", "{", "}", "...", "..", ".", "<<", "<", ">>", ">" , "?", "#" , "@", "&" , "|", "^", ":", NULL};
+{"&&", "||", "<=", ">=","==", "!=", "/=", "*=", "+=", "-=", "|=",  "&~=", "|=", "&~=", "++", "--", ".", "::", ";", ",", "!", "*", "/", "(", ")", "-", "+", "=", "[", "]", "{", "}", "...", "..", ".", "<<", "<", ">>", ">" , "?", "#" , "@", "&" , "|", "^", ":", "~", "%", NULL};
 
 // simple types.  function types are dynamically allocated
 QCC_type_t	*type_void;// = {ev_void/*, &def_void*/};
@@ -2650,15 +2650,6 @@ void QCC_PR_Lex (void)
 
 // if the first character is a valid identifier, parse until a non-id
 // character is reached
-	if ( c == '~' || c == '%')	//let's see which one we make into an operator first... possibly both...
-	{
-		QCC_PR_ParseWarning(0, "~ or %% prefixes to denote integers are deprecated. Please use a postfix of 'i'");
-		pr_file_p++;
-		pr_token_type = tt_immediate;
-		pr_immediate_type = type_integer;
-		pr_immediate._int = QCC_PR_LexInteger ();
-		return;
-	}
 	if ( c == '0' && pr_file_p[1] == 'x')
 	{
 		pr_token_type = tt_immediate;

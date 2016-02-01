@@ -352,7 +352,13 @@ enum qcop_e {
 
     OP_STORE_U,
 
-	OP_NUMOPS			//246
+    OP_BITNOT_F,
+    OP_BITNOT_I,
+
+    OP_MODULO_I,
+    OP_MODULO_F,
+
+	OP_NUMOPS
 };
 
 #define	MAX_PARMS	8
