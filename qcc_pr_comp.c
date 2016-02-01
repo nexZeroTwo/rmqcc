@@ -5869,6 +5869,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
                 QCC_type_t *tb = *(op->type_b);
 
                 if(*op->name == '=' && ta->type == ev_pointer && tb->type == eValue->type->type) {
+                    qcc_usefulstatement = true;
                     QCC_PR_Statement(op, eValue, tmpFld, NULL);
                     break;
                 }
