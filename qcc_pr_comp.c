@@ -5841,6 +5841,9 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
         do {
             QCC_def_t *eField, *eValue;
 
+            if(!STRCMP(pr_token, "}"))
+                break;
+
             pr_inent = tmpEnt;
             QCC_UnFreeTemp(tmpFld);
             QCC_UnFreeTemp(tmpEnt);
