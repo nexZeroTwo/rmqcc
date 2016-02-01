@@ -348,6 +348,7 @@ typedef struct QCC_def_s
 	pbool saved;
 	pbool isstatic;
 	pbool subscoped_away;
+    pbool oldstyle;
 
 	temp_t *temp;
 
@@ -639,6 +640,7 @@ enum {
     WARN_IMPLICITDECLARATION,
     WARN_DEPRECATEDTERNARY,
     WARN_DEPRECATEDLOCAL,
+    WARN_DEPRECATEDFUNCTIONSTYLE,
 
 	ERR_PARSEERRORS,	//caused by qcc_pr_parseerror being called.
 

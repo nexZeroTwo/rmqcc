@@ -8991,6 +8991,8 @@ void QCC_PR_ParseInitializerType(int arraysize, QCC_def_t *def, QCC_type_t **p_t
 					f = NULL;
 			}
 			else {
+                if(def->oldstyle)
+                    QCC_PR_ParseWarning(WARN_DEPRECATEDFUNCTIONSTYLE, "old-style function definition");
 				f = QCC_PR_ParseImmediateStatements (type);
                 QCC_PR_CheckUnresolvedTypes(def);
             }
@@ -9594,22 +9596,26 @@ void QCC_PR_ParseDefs (char *classname)
 		}
 
 // check for an initialization
-		if (type->type == ev_function && (pr_scope))
+		if (type->type == ev_function)
 		{
-			if ( QCC_PR_CheckToken ("=") )
-			{
-				QCC_PR_ParseError (ERR_INITIALISEDLOCALFUNCTION, "local functions may not be initialised");
-			}
+            if (pr_scope) {
+                if ( QCC_PR_CheckToken ("=") )
+                {
+                    QCC_PR_ParseError(ERR_INITIALISEDLOCALFUNCTION, "local functions may not be initialised");
+                }
 
-			d = def;
-			while (d != def->deftail)
-			{
-				d = d->next;
-				d->initialized = 1;	//fake function
-				G_FUNCTION(d->ofs) = 0;
-			}
+                d = def;
+                while (d != def->deftail)
+                {
+                    d = d->next;
+                    d->initialized = 1; //fake function
+                    G_FUNCTION(d->ofs) = 0;
+                }
 
-			continue;
+                continue;
+            } else if (pr_token_type == tt_punct && !STRCMP(pr_token, "=")) { // No QCC_PR_CheckToken here!
+                def->oldstyle = true;
+            }
 		}
 
 		if (type->type == ev_field && QCC_PR_CheckName ("alias"))
