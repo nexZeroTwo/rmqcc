@@ -923,7 +923,6 @@ pbool QCC_OPCodeValid(QCC_opcode_t *op)
                     return true;
             }
         }
-
 		return false;
 	case QCF_HEXEN2:
 		if (num >= OP_SWITCH_V && num <= OP_SWITCH_FNC)	//these were assigned numbers but were never actually implemtented in standard h2.
@@ -4863,44 +4862,27 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 		}
 		else if (QCC_OPCodeValid(&pr_opcodes[OP_FETCH_GBL_F]))
 		{
-            int optype = t->type;
-
-            // Added for DPRM so we can use this for field arrays, too.
-            if(optype == ev_field)
-                optype = t->aux_type->type;
-
 			/*hexen2 format has opcodes to read arrays (but has no way to write)*/
-			switch(optype)
+			switch(t->type)
 			{
 			case ev_float:
-				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_F], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
-
-                // I don't know WTF was this here for, but it broke everything... at least for DPRM.
-                // Also removed the same thing from all other cases.
-                //
-				// st->a = d->ofs;
+				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_F], d, QCC_SupplyConversion(idx, ev_float, true), &st);
 				break;
 			case ev_vector:
-				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_V], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
+				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_V], d, QCC_SupplyConversion(idx, ev_float, true), &st);
 				break;
 			case ev_string:
-				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_S], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
+				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_S], d, QCC_SupplyConversion(idx, ev_float, true), &st);
 				break;
 			case ev_entity:
-				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_E], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
+				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_E], d, QCC_SupplyConversion(idx, ev_float, true), &st);
 				break;
 			case ev_function:
-				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_FNC], d, QCC_SupplyConversion(idx, ev_float, true), &st);	//get pointer to precise def.
+				d = QCC_PR_Statement(&pr_opcodes[OP_FETCH_GBL_FNC], d, QCC_SupplyConversion(idx, ev_float, true), &st);
 				break;
 			default:
-                if (qcc_targetformat == QCF_DPRM) {
-                    emulate = true;
-                    break;
-                }
-
-				QCC_PR_ParseError(ERR_NOVALIDOPCODES, "No op available. Try assembler");
-				d = NULL;
-				break;
+                emulate = true;
+                break;
 			}
 
             if (!emulate)
@@ -4908,9 +4890,8 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 		}
         else
             emulate = true;
-		
-        if (emulate)
-		{
+
+		if (emulate) {
 			/*emulate the array access using a function call to do the read for us*/
 			QCC_def_t *args[1], *funcretr;
 
@@ -8204,24 +8185,18 @@ void QCC_PR_EmitArrayGetFunction(QCC_def_t *scope, char *arrayname)
 	QCC_dstatement_t *st;
 	QCC_def_t *eq;
 
-	QCC_def_t *fasttrackpossible;
+	QCC_def_t *fasttrackpossible = NULL;
+    pbool forcefasttrack = false;
 
-    if (qcc_targetformat == QCF_DPRM) {
-        QCC_PR_ParseError(ERR_INTERNAL, "QCC_PR_EmitArrayGetFunction... on the DPRM target? No way.");
-        return;
-    }
-
-	if (flag_fasttrackarrays)
+    if (qcc_targetformat == QCF_DPRM)
+        forcefasttrack = true;
+	else if (flag_fasttrackarrays)
 		fasttrackpossible = QCC_PR_GetDef(type_float, "__ext__fasttrackarrays", NULL, true, 1, false);
-	else
-		fasttrackpossible = NULL;
 
 	def = QCC_PR_GetDef(NULL, arrayname, NULL, false, 0, false);
 
-	if (def->arraysize >= 15 && def->type->size == 1)
-	{
+	if (!forcefasttrack && def->arraysize >= 15 && def->type->size == 1)
 		vectortrick = QCC_PR_EmitArrayGetVector(def);
-	}
 	else
 		vectortrick = NULL;
 
@@ -8239,13 +8214,18 @@ void QCC_PR_EmitArrayGetFunction(QCC_def_t *scope, char *arrayname)
 	df->parm_size[0] = 1;
 	df->numparms = 1;
 	df->parm_start = numpr_globals;
+
 	index = QCC_PR_GetDef(type_float, "indexg___", def, true, 1, false);
+
+    if(forcefasttrack)
+        ++index->references;
 
 	G_FUNCTION(scope->ofs) = df - functions;
 
-	if (fasttrackpossible)
+	if (fasttrackpossible || forcefasttrack)
 	{
-		QCC_PR_Statement(pr_opcodes+OP_IFNOT_I, fasttrackpossible, NULL, &st);
+        if(!forcefasttrack)
+            QCC_PR_Statement(pr_opcodes+OP_IFNOT_I, fasttrackpossible, NULL, &st);
 		//fetch_gbl takes: (float size, variant array[]), float index, variant pos
 		//note that the array size is coded into the globals, one index before the array.
 
@@ -8257,7 +8237,8 @@ void QCC_PR_EmitArrayGetFunction(QCC_def_t *scope, char *arrayname)
 		QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_RETURN], &def_ret, NULL, NULL));
 
 		//finish the jump
-		st->b = &statements[numstatements] - st;
+        if(!forcefasttrack)
+            st->b = &statements[numstatements] - st;
 	}
 
 	if (vectortrick)
@@ -8313,13 +8294,14 @@ void QCC_PR_EmitArrayGetFunction(QCC_def_t *scope, char *arrayname)
 		QCC_FreeTemp(ret);
 		QCC_FreeTemp(index);
 	}
-	else
+	else if(!forcefasttrack)
 	{
 		QCC_PR_Statement3(pr_opcodes+OP_BITAND_F, index, index, index, false);
 		QCC_PR_ArrayRecurseDivideRegular(def, index, 0, def->arraysize);
 	}
 
-	QCC_PR_Statement(pr_opcodes+OP_RETURN, QCC_MakeFloatConst(0), 0, NULL);
+    if(!forcefasttrack)
+        QCC_PR_Statement(pr_opcodes+OP_RETURN, QCC_MakeFloatConst(0), 0, NULL);
 
 	QCC_PR_Statement(pr_opcodes+OP_DONE, 0, 0, NULL);
 
@@ -8398,14 +8380,13 @@ void QCC_PR_EmitArraySetFunction(QCC_def_t *scope, char *arrayname)
 	df->numparms = 2;
 	df->parm_start = numpr_globals;
 
+    index = QCC_PR_GetDef(type_float, "indexs___", def, true, 1, false);
+    value = QCC_PR_GetDef(def->type, "value___", def, true, 1, false);
+
     if(forcefasttrack) {
-        index = QCC_PR_DummyDef(type_float, "indexs___", def, 1, OFS_PARM0, true, false);
-        value = QCC_PR_DummyDef(type_float, "value___", def, 1, OFS_PARM1, true, false);
+        // TODO: find an actual solution for those no-reference warnings
         ++index->references;
         ++value->references;
-    } else {    
-        index = QCC_PR_GetDef(type_float, "indexs___", def, true, 1, false);
-        value = QCC_PR_GetDef(def->type, "value___", def, true, 1, false);
     }
 
 	locals_end = numpr_globals;
