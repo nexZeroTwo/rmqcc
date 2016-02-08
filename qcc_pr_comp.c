@@ -4616,6 +4616,9 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
                     e = QCC_PR_Expression(TOP_PRIORITY, EXPR_DISALLOW_COMMA);
 
                     if(tVal) {
+                        if(e->type->type == ev_null)
+                            e = QCC_ForceCast(e, tVal);
+
                         if(typecmp(tVal, e->type))
                             QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected %s, got %s", TypeName(tVal), TypeName(e->type));
                     } else {
