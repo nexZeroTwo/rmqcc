@@ -4,3 +4,10 @@
 *.exe
 *.dll
 *.obj
+*.opensdf
+*.sdf
+*.suo
+*.user
+lib/
+Release/
+Debug/

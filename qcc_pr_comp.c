@@ -5413,9 +5413,9 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 			}
 			if (QCC_PR_CheckToken ("?"))
 			{
+				QCC_dstatement32_t *fromj, *elsej;
                 QCC_PR_ParseWarning(WARN_DEPRECATEDTERNARY, "the 'cond? expr1 : expr2' ternary operator syntax is deprecated, consider using 'if(cond) expr1 else expr2'");
 
-				QCC_dstatement32_t *fromj, *elsej;
 				QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_IFNOT_I], e, NULL, &fromj));
 				e = QCC_PR_Expression(TOP_PRIORITY, 0);
 				e2 = QCC_GetTemp(e->type);
@@ -7845,7 +7845,7 @@ Parse a function body
 */
 QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 {
-	int			i;
+	int			i, numparms;
 	QCC_function_t	*f;
 	QCC_def_t		*defs[MAX_PARMS+MAX_EXTRA_PARMS], *e2;
 
@@ -7881,7 +7881,7 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 		return f;
 	}
 
-    int numparms = type->num_parms;
+    numparms = type->num_parms;
 
 	if(numparms < 0) {
         numparms = (numparms * -1) - 1;
