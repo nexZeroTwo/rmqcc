@@ -2529,6 +2529,7 @@ void QCC_PR_CommandLinePrecompilerOptions (void)
 				cnst->value = qccHunkAlloc(strlen(val)+1);
 				memcpy(cnst->value, val, strlen(val)+1);
 			}
+            cnst->numparams = -1;
 		}
 
 		//optimisations.
