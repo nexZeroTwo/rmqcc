@@ -9872,6 +9872,8 @@ pbool QCC_Include(char *filename)
 	opr_file_p = pr_file_p;
 	oldcurrentchunk = currentchunk;
 
+    printf("compiling %s (included from %s)\n", filename, ocompilingfile);
+
 	strcpy(fname, filename);
 	QCC_LoadFile(fname, (void*)&newfile);
 	currentchunk = NULL;

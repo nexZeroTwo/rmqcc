@@ -5,7 +5,6 @@
 #define print printf
 #endif
 #include "time.h"
-
 #define MEMBERFIELDNAME "__m%s"
 
 #define STRCMP(s1,s2) (((*s1)!=(*s2)) || strcmp(s1+1,s2+1))	//saves about 2-6 out of 120 - expansion of idea from fastqcc
@@ -154,52 +153,19 @@ extern char qccmsourcedir[];
 //also meant to include it.
 void QCC_FindBestInclude(char *newfile, char *currentfile, char *rootpath)
 {
-	char fullname[1024];
-	int doubledots;
+    char fullname[2048] = {0}, *c, *lastslash = currentfile - 1;
 
-	char *end = fullname;
+    if(!*newfile)
+        return;
 
-	if (!*newfile)
-		return;
+    for(c = currentfile; *c; ++c)
+        if(*c == '/' || *c == '\\')
+            lastslash = c;
 
-	doubledots = 0;
-	/*count how far up we need to go*/
-	while(!strncmp(newfile, "../", 3) || !strncmp(newfile, "..\\", 3))
-	{
-		newfile+=3;
-		doubledots++;
-	}
+    strcpy(fullname, currentfile);
+    strcpy(fullname + (lastslash - currentfile) + 1, newfile);
 
-	currentfile += strlen(rootpath);	//could this be bad?
-
-	strcpy(fullname, rootpath);
-	end = fullname+strlen(end);
-	if (*fullname && end[-1] != '/')
-	{
-		strcpy(end, "/");
-		end = end+strlen(end);
-	}
-	strcpy(end, currentfile);
-	end = end+strlen(end);
-
-	while (end > fullname)
-	{
-		end--;
-		/*stop at the slash, unless we're meant to go further*/
-		if (*end == '/' || *end == '\\')
-		{
-			if (!doubledots)
-			{
-				end++;
-				break;
-			}
-			doubledots--;
-		}
-	}
-
-	strcpy(end, newfile);
-
-	QCC_Include(fullname);
+    QCC_Include(fullname);
 }
 
 pbool defaultnoref;
