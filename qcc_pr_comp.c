@@ -71,6 +71,7 @@ pbool flag_fasttrackarrays;	//Faster arrays, dynamically detected, activated onl
 pbool flag_msvcstyle;		//MSVC style warnings, so msvc's ide works properly
 pbool flag_assume_integer;	//5 - is that an integer or a float? qcc says float. but we support int too, so maybe we want that instead?
 pbool flag_filetimes;
+pbool flag_fixternary;
 
 pbool opt_overlaptemps;		//reduce numpr_globals by reuse of temps. When they are not needed they are freed for reuse. The way this is implemented is better than frikqcc's. (This is the single most important optimisation)
 pbool opt_assignments;		//STORE_F isn't used if an operation wrote to a temp.
@@ -2751,7 +2752,7 @@ QCC_def_t	*QCC_PR_ParseImmediate (void)
 				strcat(tmp, pr_immediate_string);
 			else
 				break;
-		} 
+		}
 
 		cn = QCC_MakeStringConst(tmp);
 		return cn;
@@ -4573,7 +4574,7 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
                     QCC_PR_ParseError(ERR_BADSWITCHTYPE, "bad switch type");
                     break;
             }
- 
+
             QCC_PR_Statement(&pr_opcodes[OP_GOTO], 0, 0, &sStartJump);
 
             QCC_PR_Expect("{");
@@ -4603,7 +4604,7 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 
                     if(typecmp(tKey, e->type))
                         QCC_PR_ParseError(ERR_TYPEMISMATCH, "type mismatch: expected %s, got %s", TypeName(tKey), TypeName(e->type));
-                    
+
                     eCaseKeys[num_cases] = e;
                 }
 
@@ -4734,7 +4735,7 @@ QCC_def_t	*QCC_PR_ParseValue (QCC_type_t *assumeclass, pbool allowarrayassign)
 				{
 					break;
 				}
-			
+
 			}
 			if (!t)
 				QCC_PR_ParseError(0, "%s is not a member", pr_token);
@@ -5414,10 +5415,16 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 			if (QCC_PR_CheckToken ("?"))
 			{
 				QCC_dstatement32_t *fromj, *elsej;
-                QCC_PR_ParseWarning(WARN_DEPRECATEDTERNARY, "the 'cond? expr1 : expr2' ternary operator syntax is deprecated, consider using 'if(cond) expr1 else expr2'");
+                unsigned int expr_flags = 0;
+
+                if(flag_fixternary) {
+                    expr_flags = EXPR_NO_EXPECT_PUNCTATION | EXPR_DISALLOW_COMMA;
+                } else {
+                    QCC_PR_ParseWarning(WARN_DEPRECATEDTERNARY, "the 'cond? expr1 : expr2' ternary operator syntax is deprecated, consider using 'if(cond) expr1 else expr2' or enable the 'fixternary' flag");
+                }
 
 				QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[OP_IFNOT_I], e, NULL, &fromj));
-				e = QCC_PR_Expression(TOP_PRIORITY, 0);
+				e = QCC_PR_Expression(TOP_PRIORITY, expr_flags);
 				e2 = QCC_GetTemp(e->type);
 				QCC_FreeTemp(QCC_PR_Statement(&pr_opcodes[(e2->type->size>=3)?OP_STORE_V:OP_STORE_F], e, e2, NULL));
 				//e2 can be stomped upon until its reused anyway
@@ -5426,7 +5433,7 @@ QCC_def_t *QCC_PR_Expression (int priority, int exprflags)
 				QCC_PR_Expect(":");
 				QCC_PR_Statement(&pr_opcodes[OP_GOTO], NULL, NULL, &elsej);
 				fromj->b = &statements[numstatements] - fromj;
-				e = QCC_PR_Expression(TOP_PRIORITY, 0);
+				e = QCC_PR_Expression(TOP_PRIORITY, expr_flags);
 
 				if (typecmp(e->type, e2->type) != 0)
 					QCC_PR_ParseError(0, "Ternary operator with mismatching types");
