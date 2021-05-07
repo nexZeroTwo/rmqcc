@@ -2454,6 +2454,9 @@ int QCC_PR_CheakCompConst(void)
             *fargs = '(';
             prev_ttype = tt_punct;
 
+			if (*pr_token == ')')
+				plevel--;
+
             while(plevel) {
                 if(pr_token_type == tt_name && prev_ttype == tt_name)
                     strcat(fargs, " ");
