@@ -7969,7 +7969,7 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 	if (QCC_PR_CheckKeyword (keyword_asm, "asm"))
 	{
 		QCC_PR_Expect ("{");
-		while (!QCC_PR_CheckToken("}"))
+		while (pr_token_type != tt_punct || STRCMP(pr_token, "}")) //Can't use QCC_PR_CheckToken here, it can change pr_scope
 			QCC_PR_ParseAsm ();
 	}
 	else
@@ -7978,7 +7978,7 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 //
 // parse regular statements
 //
-		while (!QCC_PR_CheckToken("}"))
+		while (pr_token_type != tt_punct || STRCMP(pr_token, "}")) //Can't use QCC_PR_CheckToken here, it can change pr_scope
 		{
 			QCC_PR_ParseStatement (false);
 			QCC_FreeTemps();
@@ -8076,6 +8076,7 @@ QCC_function_t *QCC_PR_ParseImmediateStatements (QCC_type_t *type)
 		num_cases = 0;
 		QCC_PR_ParseError(ERR_ILLEGALCASES, "%s: function contains illegal cases", pr_scope->name);
 	}
+	QCC_PR_Lex ();
 
 	return f;
 }
